@@ -2,19 +2,28 @@ const express = require('express');
 const bodyParser = require('body-parser');
 const { Pool } = require('pg');
 const path = require('path');
+const dotenv = require('dotenv');
+
+dotenv.config(); // Load environment variables from .env file
+
+console.log('DB_USER:', process.env.DB_USER);
+console.log('DB_HOST:', process.env.DB_HOST);
+console.log('DB_NAME:', process.env.DB_NAME);
+console.log('DB_PASSWORD:', process.env.DB_PASSWORD);
+console.log('DB_PORT:', process.env.DB_PORT);
+
 const app = express();
 const port = 8000;
 
 app.use(express.static(path.join(__dirname, 'public')));
 
-
-// PostgreSQL pool setup
+// PostgreSQL pool setup using environment variables
 const pool = new Pool({
-    user: '',
-    host: '',
-    database: '',
-    password: '',
-    port: 5432,
+    user: process.env.DB_USER,
+    host: process.env.DB_HOST,
+    database: process.env.DB_NAME,
+    password: process.env.DB_PASSWORD,
+    port: process.env.DB_PORT,
 });
 
 app.use(bodyParser.json());
@@ -25,10 +34,10 @@ const dictionaries = {
     v2: ['create', 'delete', 'update']
 };
 
-
 app.get('/', async (req, res) => {
     res.render('index.html');
-})
+});
+
 // Write endpoint
 app.post('/write', async (req, res) => {
     const jsonData = req.body;
