@@ -1,0 +1,225 @@
+body {
+  margin: 0; 
+  padding: 0; 
+  font-family: Arial, sans-serif; 
+}
+
+.header {
+  position: fixed;
+  background: rgb(123, 223, 242);
+  font-family: 'Trebuchet MS', 'Lucida Sans Unicode', 'Lucida Grande', 'Lucida Sans', Arial, sans-serif;
+  color: rgb(255, 255, 255);
+  text-align: center;
+  width: 100%; 
+  box-sizing: border-box; 
+}
+
+/*.sidebar {
+  width: 130px; 
+  background: rgb(65, 93, 67);
+  padding: 20px; 
+  height: 100vh; 
+  position: fixed;
+  top: 0; 
+  left: 0; 
+  box-sizing: border-box; 
+}
+  */
+
+.header .logo{
+  display: absolut;
+  align-items: center;
+  gap: 10px;
+}
+
+.header .logo img{
+    width: 10rem;
+    height: 5.5rem;
+    object-fit: cover;
+}
+    
+.main {
+  position: fixed;
+  align-items: center;
+  background: rgb(178, 247, 239);
+  margin-top: 0; 
+  margin-top: 90px;
+  margin-left: 130px;
+  width: 77rem;
+  height: 33rem;
+  padding: 20px;
+  font-family: 'Trebuchet MS', 'Lucida Sans Unicode', 'Lucida Grande', 'Lucida Sans', Arial, sans-serif;
+  border: 1px solid rgba(0, 0, 0, 0.2 ); /* Use a semi-transparent black border *  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2); /* Softer shadow for depth */
+}
+
+.main h2 {
+  color: black;
+  font-size: 30px;
+}
+
+.main label{
+  font-size: 20px;
+  padding: 10px;
+
+}
+
+.main p {
+  font-size: 15px;
+}
+
+.main item {
+  align-items: center;
+}
+
+.main item button {
+  padding: 12.5px 30px;
+  border: 0;
+  border-radius: 100px;
+  background-color: #2ba8fb;
+  color: #ffffff;
+  font-weight: Bold;
+  transition: all 0.5s;
+  -webkit-transition: all 0.5s;
+}
+
+.main item button:hover {
+  background-color: #6fc5ff;
+  box-shadow: 0 0 20px #6fc5ff50;
+  transform: scale(1.1);
+}
+
+.main item button:active {
+  background-color: #3d94cf;
+  transition: all 0.25s;
+  -webkit-transition: all 0.25s;
+  box-shadow: none;
+  transform: scale(0.98);
+}
+
+.main item select {
+  width: 80px;
+  height: 25px;
+  background-color: var(--dropdown-background);
+  border-radius: var(--dropdown-border-radius);
+  color: var(--dropdown-text-color);
+  border: 1px solid var(--dropdown-border-color);
+}
+
+.main item select option{ 
+  font-size: 15px;
+}
+.main item select:hover {
+  background-color: var(--dropdown-hover-color);
+}
+
+.main::before {
+  /* ... */
+  border-bottom: var(--size) solid var(--dropdown-icon-color)
+}
+
+.main::after {
+  /* ... */
+  border-top: var(--size) solid var(--dropdown-icon-color);
+}
+
+/* dark theme */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --dropdown-background: #000;
+    --dropdown-text-color: #fff;
+    --dropdown-hover-color: #222;
+    --dropdown-border-color: #555;
+    --dropdown-border-radius: 0.25em;
+    --dropdown-icon-color: #fff;
+    --background-color: #000;
+    --text-color: #fff;
+  }
+}
+
+.main #results {
+  height: 28.8rem;
+  margin-top: 10px;
+  padding: 5px;
+  border: 1px solid #ccc;
+  background-color: rgb(252, 246, 237);
+}
+
+.footer {
+  background: rgb(239, 247, 246);
+  padding: 10px;
+  height: 1.3rem;
+  color: white;
+  text-align: center;
+  position: fixed;
+  bottom: 0;
+  width: 100%;
+}
+
+.footer p{
+  font-size: 10px;
+  color: black;
+  font-style: italic;
+  margin: 0;
+}
+
+@media (max-width: 900px){
+  .sidebar {
+    width: 100px; /* Reduce sidebar width */
+    padding: 10px; /* Adjust padding */
+}
+
+.main {
+    margin-left: 100px; /* Adjust margin for smaller screens */
+}
+
+.main h2 {
+    font-size: 24px; /* Smaller heading size */
+}
+
+.main p {
+    font-size: 14px; /* Smaller paragraph size */
+}
+}
+
+/* Responsive Styles */
+@media (max-width: 768px) {
+  .sidebar {
+      width: 100px; /* Reduce sidebar width */
+      padding: 10px; /* Adjust padding */
+  }
+
+  .main {
+      margin-left: 100px; /* Adjust margin for smaller screens */
+  }
+
+  .main h2 {
+      font-size: 24px; /* Smaller heading size */
+  }
+
+  .main p {
+      font-size: 14px; /* Smaller paragraph size */
+  }
+}
+
+@media (max-width: 480px) {
+  .sidebar {
+      display: none; /* Hide the sidebar on very small screens */
+  }
+
+  .main {
+      margin-left: 0; /* Remove left margin */
+      padding: 10px; /* Adjust padding */
+  }
+
+  .header {
+      padding: 15px; /* Adjust header padding */
+  }
+
+  .main h2 {
+      font-size: 20px; /* Smaller heading size */
+  }
+
+  .main p {
+      font-size: 12px; /* Smaller paragraph size */
+  }
+} 
