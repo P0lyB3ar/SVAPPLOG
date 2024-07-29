@@ -3,6 +3,7 @@ const bodyParser = require('body-parser');
 const { Pool } = require('pg');
 const path = require('path');
 const dotenv = require('dotenv');
+const argon2 = require('argon2')
 
 dotenv.config(); // Load environment variables from .env file
 
@@ -14,8 +15,12 @@ console.log('DB_PORT:', process.env.DB_PORT);
 
 const app = express();
 const port = 8000;
+app.set('view engine', 'ejs');
 
 app.use(express.static(path.join(__dirname, 'public')));
+
+app.use(bodyParser.json());
+app.use(bodyParser.urlencoded({ extended: true }));
 
 // PostgreSQL pool setup using environment variables
 const pool = new Pool({
@@ -36,6 +41,37 @@ const dictionaries = {
 
 app.get('/', async (req, res) => {
     res.render('index.html');
+});
+
+
+app.get('/register', (req, res) => {
+    res.render('register');
+  });
+  
+
+app.post('/register', async (req, res) => {
+    const { username, password } = req.body;
+    const createdOn = new Date();
+    const role = 'user'; // Default role, you can change it as needed
+  
+    try {
+      // Hash the password
+      const hashedPassword = await argon2.hash(password);
+  
+      const result = await pool.query(
+        'INSERT INTO users (username, password, created_on, role) VALUES ($1, $2, $3, $4) RETURNING *',
+        [username, hashedPassword, createdOn, role]
+      );
+      res.status(201).json({ user: result.rows[0] });
+    } catch (error) {
+      if (error.code === '23505') {
+        // Unique constraint violation (username already exists)
+        res.status(409).json({ error: 'Username already exists' });
+      } else {
+        console.error('Error registering user:', error);
+        res.status(500).json({ error: 'Internal server error' });
+      }
+    }
 });
 
 // Write endpoint
