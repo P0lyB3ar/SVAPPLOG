@@ -3,24 +3,34 @@ const bodyParser = require('body-parser');
 const { Pool } = require('pg');
 const path = require('path');
 const dotenv = require('dotenv');
-const argon2 = require('argon2')
+const session = require('express-session');
+const morgan = require('morgan'); // Logging middleware
 
 dotenv.config(); // Load environment variables from .env file
-
-console.log('DB_USER:', process.env.DB_USER);
-console.log('DB_HOST:', process.env.DB_HOST);
-console.log('DB_NAME:', process.env.DB_NAME);
-console.log('DB_PASSWORD:', process.env.DB_PASSWORD);
-console.log('DB_PORT:', process.env.DB_PORT);
 
 const app = express();
 const port = 8000;
 app.set('view engine', 'ejs');
 
-app.use(express.static(path.join(__dirname, 'public')));
+// Add morgan for logging
+app.use(morgan('dev'));
 
+// Session setup
+app.use(session({
+    secret: 'secret',
+    resave: true,
+    saveUninitialized: true
+}));
+
+
+// Body parser middleware
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
+
+// Static files middleware for the public directory
+app.use(express.static(path.join(__dirname, 'public')));
+app.set('views', path.join(__dirname, 'views'));
+
 
 // PostgreSQL pool setup using environment variables
 const pool = new Pool({
@@ -31,48 +41,85 @@ const pool = new Pool({
     port: process.env.DB_PORT,
 });
 
-app.use(bodyParser.json());
-
-// Predefined dictionaries
-const dictionaries = {
-    v1: ['login', 'logout', 'register'],
-    v2: ['create', 'delete', 'update']
-};
-
-app.get('/', async (req, res) => {
-    res.render('index.html');
+// Debugging middleware to log session
+app.use((req, res, next) => {
+    console.log('Session:', req.session);
+    next();
 });
 
-
+// Render the registration form
 app.get('/register', (req, res) => {
     res.render('register');
-  });
-  
+});
 
+// Endpoint to handle user registration
 app.post('/register', async (req, res) => {
     const { username, password } = req.body;
     const createdOn = new Date();
     const role = 'user'; // Default role, you can change it as needed
-  
+
     try {
-      // Hash the password
-      const hashedPassword = await argon2.hash(password);
-  
-      const result = await pool.query(
-        'INSERT INTO users (username, password, created_on, role) VALUES ($1, $2, $3, $4) RETURNING *',
-        [username, hashedPassword, createdOn, role]
-      );
-      res.status(201).json({ user: result.rows[0] });
+        const result = await pool.query(
+            'INSERT INTO users (username, password, created_on, role) VALUES ($1, $2, $3, $4) RETURNING *',
+            [username, password, createdOn, role] // Storing plain text password
+        );
+        res.status(201).redirect('/login');
     } catch (error) {
-      if (error.code === '23505') {
-        // Unique constraint violation (username already exists)
-        res.status(409).json({ error: 'Username already exists' });
-      } else {
-        console.error('Error registering user:', error);
-        res.status(500).json({ error: 'Internal server error' });
-      }
+        if (error.code === '23505') {
+            // Unique constraint violation (username already exists)
+            res.status(409).json({ error: 'Username already exists' });
+        } else {
+            console.error('Error registering user:', error);
+            res.status(500).json({ error: 'Internal server error' });
+        }
     }
 });
+
+// Render the login form
+app.get('/login', (req, res) => {
+    res.render('login');
+});
+
+// Endpoint to handle user login
+app.post('/login', async (req, res) => {
+    const { username, password } = req.body;
+
+    try {
+        const result = await pool.query('SELECT * FROM users WHERE username = $1 AND password = $2', [username, password]);
+        const user = result.rows[0];
+
+        if (user) {
+            req.session.loggedin = true;
+            req.session.username = username;
+            res.redirect('/home');
+        } else {
+            res.send('Incorrect Username and/or Password!');
+        }
+    } catch (error) {
+        console.error('Error logging in user:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+// Root route to render login or redirect to home based on authentication
+app.get('/', (req, res) => {
+    console.log('Root route accessed, redirecting to /home');
+    res.redirect('/home');
+});
+
+
+// Render the home page if logged in
+app.get('/home', (req, res) => {
+    console.log('Home route accessed');
+    if (req.session.loggedin) {
+        console.log('User is logged in, serving index.html');
+        res.sendFile(path.join(__dirname, 'views', 'index.html')); // Serve index.html if logged in
+    } else {
+        console.log('User is not logged in, redirecting to /login');
+        res.redirect('/login');
+    }
+});
+
 
 // Write endpoint
 app.post('/write', async (req, res) => {
