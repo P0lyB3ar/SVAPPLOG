@@ -4,7 +4,9 @@ const { Pool } = require('pg');
 const path = require('path');
 const dotenv = require('dotenv');
 const session = require('express-session');
-const morgan = require('morgan'); // Logging middleware
+const morgan = require('morgan');
+
+const crypto = require('crypto');
 
 dotenv.config(); // Load environment variables from .env file
 
@@ -120,6 +122,24 @@ app.get('/home', (req, res) => {
     }
 });
 
+app.get('/genapikey', (req, res) => {
+    if (req.session.loggedin) {
+        try {
+            const secret = 'your-secret-key'; // You should use a secure, private key here
+            const token = crypto.randomUUID();
+            const hashedToken = crypto.createHmac('sha256', secret)
+                                      .update(token)
+                                      .digest('hex');
+            res.json({ apiKey: hashedToken });
+        } catch (error) {
+            console.error('Error generating API key:', error);
+            res.status(500).send('Internal Server Error');
+        }
+    } else {
+        console.log('User is not logged in, redirecting to /login');
+        res.redirect('/login');
+    }
+});
 
 // Write endpoint
 app.post('/write', async (req, res) => {
