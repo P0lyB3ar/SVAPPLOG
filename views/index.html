@@ -21,14 +21,19 @@
                 <option value="login">Login</option>
                 <option value="logout">Logout</option>
                 <option value="register">Register</option>
+                <option value="date">Date</option>
             </select>
+            <input type="date" id="datePicker" style="display: none;">
         </item>
         <div id="results">
             <table id="dataGrid" border="1">
                 <thead>
                     <tr>
-                        <th>Action</th>
+                        <th>User_ID</th>
                         <th>User</th>
+                        <th>Action</th>
+                        <th>Time stamp</th>
+                        <th>Path</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -42,26 +47,42 @@
 </body>
 <script>
     document.getElementById('fetchButton').addEventListener('click', fetchData);
-    document.getElementById('type').addEventListener('change', fetchData);
+    document.getElementById('type').addEventListener('change', handleTypeChange);
+    document.getElementById('datePicker').addEventListener('change', fetchData);
+
+    function handleTypeChange() {
+        const typeValue = document.getElementById('type').value;
+        const datePicker = document.getElementById('datePicker');
+
+        if (typeValue === 'date') {
+            datePicker.style.display = 'inline';
+        } else {
+            datePicker.style.display = 'none';
+            fetchData();
+        }
+    }
 
     function fetchData() {
-        const sortValue = document.getElementById('type').value;
-        const url = `http://localhost:8000/read?logs=all&dict=v1&sort=${sortValue}`;
+        // Simulating fetch data with example data
+        const data = {
+            "login": [
+                { "user_id": "1", "user": "Alice", "timestamp": "2024-07-28T10:00:00", "path": "/login" },
+                { "user_id": "2", "user": "Bob", "timestamp": "2024-07-29T10:05:00", "path": "/login" }
+            ],
+            "logout": [
+                { "user_id": "3", "user": "Charlie", "timestamp": "2024-07-28T10:10:00", "path": "/logout" }
+            ],
+            "register": [
+                { "user_id": "4", "user": "Dave", "timestamp": "2024-07-29T10:15:00", "path": "/register" }
+            ],
+            "other": [
+                { "user_id": "5", "user": "Eve", "timestamp": "2024-07-27T10:20:00", "path": "/other" },
+                { "user_id": "6", "user": "Frank", "timestamp": "2024-07-29T10:25:00", "path": "/other" }
+            ]
+        };
 
-        fetch(url)
-            .then(response => {
-                if (!response.ok) {
-                    throw new Error('Network response was not ok ' + response.statusText);
-                }
-                return response.json();
-            })
-            .then(data => {
-                updateTable(data, sortValue);
-            })
-            .catch(error => {
-                const resultsDiv = document.getElementById('results');
-                resultsDiv.innerHTML = '<p style="color: red;">Error: ' + error.message + '</p>';
-            });
+        const sortValue = document.getElementById('type').value;
+        updateTable(data, sortValue);
     }
 
     function updateTable(data, sortValue) {
@@ -69,23 +90,23 @@
         tableBody.innerHTML = ''; // Clear previous results
 
         for (const [action, users] of Object.entries(data)) {
-            if (!sortValue || action === sortValue) {
-                users.forEach(userObj => {
+            users.forEach(userObj => {
+                if (!sortValue || action === sortValue || (sortValue === 'date' && userObj.timestamp.includes(document.getElementById('datePicker').value))) {
                     const newRow = tableBody.insertRow();
-                    const actionCell = newRow.insertCell(0);
+
+                    const userIDCell = newRow.insertCell(0);
                     const userCell = newRow.insertCell(1);
-                    actionCell.textContent = action;
-                    userCell.textContent = userObj.user;
-                });
-            } else {
-                users.forEach(userObj => {
-                    const newRow = tableBody.insertRow();
-                    const actionCell = newRow.insertCell(0);
-                    const userCell = newRow.insertCell(1);
-                    actionCell.textContent = action;
-                    userCell.textContent = userObj.user;
-                });
-            }
+                    const actionCell = newRow.insertCell(2);
+                    const timestampCell = newRow.insertCell(3);
+                    const pathCell = newRow.insertCell(4);
+
+                    userIDCell.textContent = userObj.user_id || 'None';
+                    userCell.textContent = userObj.user || 'None';
+                    actionCell.textContent = action || 'None';
+                    timestampCell.textContent = userObj.timestamp || 'None';
+                    pathCell.textContent = userObj.path || 'None';
+                }
+            });
         }
     }
 

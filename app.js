@@ -33,6 +33,10 @@ app.use(bodyParser.urlencoded({ extended: true }));
 app.use(express.static(path.join(__dirname, 'public')));
 app.set('views', path.join(__dirname, 'views'));
 
+const dictionaries = {
+    1: ["login", "logout", "signup", "register"],
+    // Add other dictionary IDs and their types here
+};
 
 // PostgreSQL pool setup using environment variables
 const pool = new Pool({
@@ -146,6 +150,7 @@ app.post('/write', async (req, res) => {
     const jsonData = req.body;
     const dictId = req.query.dict;
     const predefinedTypes = dictionaries[dictId];
+    const path = req.path; // Get the request path
 
     if (predefinedTypes) {
         const entries = Object.entries(jsonData);
@@ -154,7 +159,10 @@ app.post('/write', async (req, res) => {
         for (const [type, data] of entries) {
             if (predefinedTypes.includes(type)) {
                 try {
-                    const result = await pool.query('INSERT INTO logs (dict_id, type, data) VALUES ($1, $2, $3) RETURNING *', [dictId, type, data]);
+                    const result = await pool.query(
+                        'INSERT INTO logs (dict_id, type, data, path) VALUES ($1, $2, $3, $4) RETURNING *',
+                        [dictId, type, data, path]
+                    );
                     results.push(result.rows[0]);
                 } catch (error) {
                     console.error('Error writing to database:', error);
@@ -169,6 +177,7 @@ app.post('/write', async (req, res) => {
         return res.status(400).json({ error: `Invalid dictionary ID: ${dictId}` });
     }
 });
+
 
 // Read endpoint
 app.get('/read', async (req, res) => {

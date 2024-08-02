@@ -10,6 +10,10 @@
   "license": "ISC",
   "description": "",
   "dependencies": {
+    "@emotion/react": "^11.13.0",
+    "@emotion/styled": "^11.13.0",
+    "@mui/material": "^5.16.6",
+    "@mui/x-data-grid": "^7.11.1",
     "argon2": "^0.40.3",
     "bcrypt": "^5.1.1",
     "body-parser": "^1.20.2",

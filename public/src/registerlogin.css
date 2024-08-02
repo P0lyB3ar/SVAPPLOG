@@ -10,7 +10,8 @@ body {
 }
 
 .registration-form, .login-form {
-    position: centured;
+    margin: 8% 25%;
+    position: fixed;
     align-items: center;
     background: #fff;
     padding: 20px;
@@ -32,7 +33,7 @@ body {
     align-items: center;
     width: 50%;
     padding: 20px;
-    margin: 20px 195px;
+    margin: 3% 23%;
     border: 2px solid #ddd;
     border-radius: 4px;
     font-size: 20px;
@@ -46,7 +47,7 @@ body {
 .registration-form button, .login-form button {
     width: 40%;
     padding: 10px;
-    margin: 10px 260px;
+    margin: 3% 30%;
     background-color: #3c73a7;
     border: none;
     border-radius: 4px;
@@ -77,7 +78,7 @@ body {
 
 .login-link {
     text-align: center;
-    margin-top: 20px;
+    margin: 10px 10px;
 }
 
 .login-link a {
@@ -85,11 +86,11 @@ body {
     padding: 20px 0;
     color: #007bff;
     text-decoration: none;
-    font-size: 20px;
+    font-size: 25px;
 }
 
 .login-link p {
-    font-size: 20px;
+    font-size: 25px;
 }
 
 .login-link a:hover {
