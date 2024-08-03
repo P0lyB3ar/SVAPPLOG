@@ -1,0 +1,42 @@
+.table-container {
+  max-height: calc(100vh - 160px); /* Adjust based on header and footer height */
+  overflow-y: auto; /* Enable vertical scrolling */
+  overflow-x: auto; /* Enable horizontal scrolling if needed */
+  width: 100%;
+  box-sizing: border-box;
+  flex: 1; 
+}
+.dataGrid {
+  width: 100%;
+  border-collapse: collapse;
+  padding: 0px;
+}
+
+.dataGrid th, .dataGrid td {
+  padding: 15px;
+  border: 1px solid #ffffff;
+  text-align: left;
+}
+
+.dataGrid thead {
+  background-color: rgb(133, 218, 252);
+  padding: 10px;
+  color: #000000;
+}
+
+.dataGrid th {
+  background-color: rgb(236, 248, 253);
+  font-weight: bold;
+}
+
+.dataGrid tbody tr:nth-child(even) {
+  background-color: rgb(222, 245, 255);
+}
+
+.dataGrid tbody tr:hover {
+  background-color: rgb(151, 205, 230);
+}
+
+.spacerRow {
+  height: 100%; /* Ensure it fills the remaining space */
+}

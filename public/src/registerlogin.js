@@ -5,6 +5,6 @@ document.getElementById('registerBtn').addEventListener('click', function() {
     // Simulate an action, e.g., form submission and page load
     setTimeout(function() {
         // Replace this with actual page redirection or form submission
-        window.location.href = "index.html";
+        window.location.href = "views/index.html";
     }, 2000); // Simulate a 2 second delay for the action
 });

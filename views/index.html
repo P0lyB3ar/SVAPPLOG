@@ -1,10 +1,11 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link rel="stylesheet" href="src/index.css">
-    <title>SVAppLog</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="stylesheet" href="src/index.css"> <!-- Adjusted path -->
+  <link rel="stylesheet" href="src/datagrid.css"> <!-- Adjusted path -->
+  <title>SVAppLog</title>
 </head>
 <body>
     <div class="header">
@@ -17,100 +18,91 @@
             <button id="fetchButton">Fetch JSON Data</button>
             <label for="type">Type:</label>
             <select name="type" id="type">
-                <option value="">All</option>
-                <option value="login">Login</option>
-                <option value="logout">Logout</option>
-                <option value="register">Register</option>
-                <option value="date">Date</option>
+              <option value="">All</option>
+              <option value="login">Login</option>
+              <option value="logout">Logout</option>
+              <option value="register">Register</option>
             </select>
-            <input type="date" id="datePicker" style="display: none;">
         </item>
+        
         <div id="results">
-            <table id="dataGrid" border="1">
-                <thead>
-                    <tr>
-                        <th>User_ID</th>
-                        <th>User</th>
-                        <th>Action</th>
-                        <th>Time stamp</th>
-                        <th>Path</th>
-                    </tr>
-                </thead>
-                <tbody>
-                </tbody>
+            <table id="dataGrid" class="dataGrid" border="1">
+              <thead>
+                <tr>
+                  <th>User_ID</th>
+                  <th>User</th>
+                  <th>Action</th>
+                  <th>Time Stamp</th>
+                  <th>Path</th>
+                </tr>
+              </thead>
+              <tbody>
+                <!-- Table rows will be dynamically inserted here -->
+              </tbody>
             </table>
         </div>
     </div>
+
+    <!-- Footer -->
     <div class="footer">
-        <p>For contacts: vaskokole@abv.bg / p0lyb3ar@proton.me</p>
+        <p>For contact: <a href="mailto:vaskokole@abv.bg">vaskokole@abv.bg</a> / <a href="mailto:p0lyb3ar@proton.me">p0lyb3ar@proton.me</a></p>
     </div>
-</body>
-<script>
+
+    <!-- Container for error messages -->
+    <div id="errorMessages"></div>
+
+  <script>
     document.getElementById('fetchButton').addEventListener('click', fetchData);
-    document.getElementById('type').addEventListener('change', handleTypeChange);
-    document.getElementById('datePicker').addEventListener('change', fetchData);
-
-    function handleTypeChange() {
-        const typeValue = document.getElementById('type').value;
-        const datePicker = document.getElementById('datePicker');
-
-        if (typeValue === 'date') {
-            datePicker.style.display = 'inline';
-        } else {
-            datePicker.style.display = 'none';
-            fetchData();
-        }
-    }
+    document.getElementById('type').addEventListener('change', fetchData);
 
     function fetchData() {
-        // Simulating fetch data with example data
-        const data = {
-            "login": [
-                { "user_id": "1", "user": "Alice", "timestamp": "2024-07-28T10:00:00", "path": "/login" },
-                { "user_id": "2", "user": "Bob", "timestamp": "2024-07-29T10:05:00", "path": "/login" }
-            ],
-            "logout": [
-                { "user_id": "3", "user": "Charlie", "timestamp": "2024-07-28T10:10:00", "path": "/logout" }
-            ],
-            "register": [
-                { "user_id": "4", "user": "Dave", "timestamp": "2024-07-29T10:15:00", "path": "/register" }
-            ],
-            "other": [
-                { "user_id": "5", "user": "Eve", "timestamp": "2024-07-27T10:20:00", "path": "/other" },
-                { "user_id": "6", "user": "Frank", "timestamp": "2024-07-29T10:25:00", "path": "/other" }
-            ]
-        };
+        const typeValue = document.getElementById('type').value;
+        const url = `http://192.168.101.39:8000/read?logs=all&dict=1&sort=${typeValue}`;
 
-        const sortValue = document.getElementById('type').value;
-        updateTable(data, sortValue);
+        fetch(url)
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Network response was not ok ' + response.statusText);
+                }
+                return response.json();
+            })
+            .then(data => {
+                updateTable(data, typeValue);
+            })
+            .catch(error => {
+                const resultsDiv = document.getElementById('results');
+                resultsDiv.innerHTML = '<p style="color: red;">Error: ' + error.message + '</p>';
+            });
     }
 
-    function updateTable(data, sortValue) {
+    function updateTable(data, typeValue) {
         const tableBody = document.getElementById('dataGrid').getElementsByTagName('tbody')[0];
         tableBody.innerHTML = ''; // Clear previous results
 
-        for (const [action, users] of Object.entries(data)) {
-            users.forEach(userObj => {
-                if (!sortValue || action === sortValue || (sortValue === 'date' && userObj.timestamp.includes(document.getElementById('datePicker').value))) {
-                    const newRow = tableBody.insertRow();
+        const actions = typeValue ? [typeValue] : Object.keys(data);
 
-                    const userIDCell = newRow.insertCell(0);
+        actions.forEach(action => {
+            if (data[action] && Array.isArray(data[action])) {
+                data[action].forEach(log => {
+                    const newRow = tableBody.insertRow();
+                    const userIdCell = newRow.insertCell(0);
                     const userCell = newRow.insertCell(1);
                     const actionCell = newRow.insertCell(2);
                     const timestampCell = newRow.insertCell(3);
                     const pathCell = newRow.insertCell(4);
 
-                    userIDCell.textContent = userObj.user_id || 'None';
-                    userCell.textContent = userObj.user || 'None';
-                    actionCell.textContent = action || 'None';
-                    timestampCell.textContent = userObj.timestamp || 'None';
-                    pathCell.textContent = userObj.path || 'None';
-                }
-            });
-        }
+                    userIdCell.textContent = log.user_id || 'None';
+                    userCell.textContent = log.user || 'None';
+                    actionCell.textContent = action;
+                    timestampCell.textContent = log.timestamp || 'None';
+                    pathCell.textContent = log.path || 'None';
+                });
+            }
+        });
     }
 
     // Initial load
     fetchData();
-</script>
+  </script>
+</body>
 </html>
