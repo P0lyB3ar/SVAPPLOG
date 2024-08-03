@@ -146,13 +146,29 @@ app.get('/genapikey', (req, res) => {
 });
 
 // Write endpoint
+// Endpoint to write data to the database
 app.post('/write', async (req, res) => {
     const jsonData = req.body;
-    const dictId = req.query.dict;
-    const predefinedTypes = dictionaries[dictId];
+    const dictName = req.query.name; // Get dictionary name from query parameter
     const path = req.path; // Get the request path
 
-    if (predefinedTypes) {
+    if (!dictName) {
+        return res.status(400).json({ error: 'Dictionary name is required' });
+    }
+
+    try {
+        // Fetch dictionary types from the database
+        const dictResult = await pool.query(
+            'SELECT data FROM dictionaries WHERE name = $1',
+            [dictName]
+        );
+
+        if (dictResult.rowCount === 0) {
+            return res.status(404).json({ error: `Dictionary with name '${dictName}' not found` });
+        }
+
+        const predefinedTypes = Object.keys(dictResult.rows[0].data);
+
         const entries = Object.entries(jsonData);
         const results = [];
 
@@ -160,8 +176,8 @@ app.post('/write', async (req, res) => {
             if (predefinedTypes.includes(type)) {
                 try {
                     const result = await pool.query(
-                        'INSERT INTO logs (dict_id, type, data, path) VALUES ($1, $2, $3, $4) RETURNING *',
-                        [dictId, type, data, path]
+                        'INSERT INTO logs (dict_name, type, data, path) VALUES ($1, $2, $3, $4) RETURNING *',
+                        [dictName, type, data, path]
                     );
                     results.push(result.rows[0]);
                 } catch (error) {
@@ -173,17 +189,19 @@ app.post('/write', async (req, res) => {
             }
         }
         return res.status(201).json(results);
-    } else {
-        return res.status(400).json({ error: `Invalid dictionary ID: ${dictId}` });
+    } catch (error) {
+        console.error('Error fetching dictionary data:', error);
+        return res.status(500).json({ error: 'Internal Server Error' });
     }
 });
+
 
 
 // Read endpoint
 app.get('/read', async (req, res) => {
     const logs = req.query.logs;
     const sort = req.query.sort;
-    const dictId = req.query.dict;
+    const dictName = req.query.name;
 
     if (logs !== 'all') {
         return res.status(400).json({ error: 'Invalid query parameter' });
@@ -193,9 +211,9 @@ app.get('/read', async (req, res) => {
         let query = 'SELECT * FROM logs';
         let queryParams = [];
 
-        if (dictId) {
-            query += ' WHERE dict_id = $1';
-            queryParams.push(dictId);
+        if (dictName) {
+            query += ' WHERE dict_name = $1';
+            queryParams.push(dictName);
         }
 
         if (sort) {
@@ -206,16 +224,31 @@ app.get('/read', async (req, res) => {
 
         const result = await pool.query(query, queryParams);
 
-        if (dictId) {
-            const dictResult = result.rows.reduce((acc, log) => {
+        if (dictName) {
+            // Fetch dictionary data to format the response
+            const dictResult = await pool.query(
+                'SELECT data FROM dictionaries WHERE name = $1',
+                [dictName]
+            );
+
+            if (dictResult.rowCount === 0) {
+                return res.status(404).json({ error: `Dictionary with name '${dictName}' not found` });
+            }
+
+            const predefinedTypes = dictResult.rows[0].data;
+
+            const dictResultFormatted = result.rows.reduce((acc, log) => {
                 const type = log.type || 'undefined';
-                if (!acc[type]) {
-                    acc[type] = [];
+                if (predefinedTypes[type]) {
+                    if (!acc[type]) {
+                        acc[type] = [];
+                    }
+                    acc[type].push(log.data);
                 }
-                acc[type].push(log.data);
                 return acc;
             }, {});
-            return res.status(200).json(dictResult);
+
+            return res.status(200).json(dictResultFormatted);
         } else {
             return res.status(200).json(result.rows);
         }
@@ -224,6 +257,32 @@ app.get('/read', async (req, res) => {
         return res.status(500).json({ error: 'Internal Server Error' });
     }
 });
+
+app.post('/create-dictionary', async (req, res) => {
+    const { name, data } = req.body;
+
+    if (!name || !data) {
+        return res.status(400).json({ error: 'Name and data are required' });
+    }
+
+    try {
+        // Insert dictionary into the database
+        const result = await pool.query(
+            'INSERT INTO dictionaries (name, data) VALUES ($1, $2) RETURNING *',
+            [name, JSON.stringify(data)]
+        );
+        res.status(201).json(result.rows[0]);
+    } catch (error) {
+        if (error.code === '23505') {
+            // Unique constraint violation (dictionary name already exists)
+            res.status(409).json({ error: 'Dictionary name already exists' });
+        } else {
+            console.error('Error creating dictionary:', error);
+            res.status(500).json({ error: 'Internal server error' });
+        }
+    }
+});
+
 
 app.listen(port, () => {
     console.log(`App running on port ${port}.`);
