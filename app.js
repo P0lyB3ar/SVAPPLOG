@@ -259,11 +259,16 @@ app.get('/read', async (req, res) => {
 });
 
 app.post('/create-dictionary', async (req, res) => {
-    const { name, data } = req.body;
+    const { name, actions } = req.body;
 
-    if (!name || !data) {
-        return res.status(400).json({ error: 'Name and data are required' });
+    // Debugging: Log the received data
+    console.log('Received data:', req.body);
+
+    if (!name || !actions || actions.length === 0) {
+        return res.status(400).json({ error: 'Name and actions are required' });
     }
+
+    const data = { [name]: actions };
 
     try {
         // Insert dictionary into the database
@@ -283,6 +288,9 @@ app.post('/create-dictionary', async (req, res) => {
     }
 });
 
+app.get('/create-dictionary', (req, res) => {
+    res.render('createdict');
+});
 
 app.listen(port, () => {
     console.log(`App running on port ${port}.`);
