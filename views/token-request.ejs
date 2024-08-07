@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Get Your API Token</title>
+    <script>
+        async function fetchToken() {
+            const response = await fetch('/token', {
+                method: 'GET',
+                headers: {
+                    'Authorization': 'Bearer ' + document.getElementById('jwt-token').value
+                }
+            });
+            if (response.ok) {
+                const data = await response.json();
+                document.getElementById('token-display').innerText = data.token;
+            } else {
+                alert('Failed to fetch token. Please log in and try again.');
+            }
+        }
+    </script>
+</head>
+<body>
+    <h1>Get Your API Token</h1>
+    <p>Ensure you are logged in to get the token.</p>
+    <input type="text" id="jwt-token" placeholder="Enter your current JWT token" />
+    <button onclick="fetchToken()">Get Token</button>
+    <p>Your token will appear below:</p>
+    <pre id="token-display"></pre>
+    <p><a href="/home">Go to Home</a></p>
+</body>
+</html>

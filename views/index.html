@@ -19,7 +19,7 @@
     </div>
   </div>
   <div class="main">
-    <div>
+    <item>
       <button id="fetchButton" class="fetchButton">Fetch JSON Data</button>
       <div class="right-group">
         <label for="type">Filter by type:</label>
@@ -30,7 +30,7 @@
           <option value="register">Register</option>
         </select>
       </div>
-    </div>
+    </item>
     <div id="results">
       <table id="dataGrid" class="dataGrid" border="1">
         <thead>
@@ -145,7 +145,7 @@
 
     function fetchData() {
       const typeValue = document.getElementById('type').value;
-      const url = `http://192.168.167.39:8000/read?logs=all&dict=1&sort=${typeValue}`;
+      const url = `http://localhost:8000/read?logs=all&dict=1&sort=${typeValue}`;
 
       console.log('Fetching data from URL:', url); // Debugging
 

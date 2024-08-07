@@ -5,6 +5,7 @@
   width: 100%;
   box-sizing: border-box;
   flex: 1; 
+  border-radius: 5px;
 }
 .dataGrid {
   width: 100%;
@@ -12,10 +13,16 @@
   padding: 0px;
 }
 
+.dataGrid table{
+  border-radius: 5px;
+}
+
 .dataGrid th, .dataGrid td {
   padding: 15px;
-  border: 1px solid #ffffff;
-  text-align: left;
+  font-size: 25px;
+  font-family:'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  border: 1px solid rgb(51 193 255);
+  text-align: center;
 }
 
 .dataGrid thead {
@@ -25,17 +32,44 @@
 }
 
 .dataGrid th {
-  background-color: rgb(236, 248, 253);
+  background-color: rgb(178 230 253);
   font-weight: bold;
 }
 
 .dataGrid tbody tr:nth-child(even) {
-  background-color: rgb(222, 245, 255);
+  background-color: rgb(201, 238, 253);
 }
 
 .dataGrid tbody tr:hover {
-  background-color: rgb(151, 205, 230);
+  background-color: rgb(162, 226, 255);
 }
+
+.dataGrid th .sort-arrow {
+  display: inline-block;
+  width: 0;
+  height: 0;
+  margin-left: 10px;
+  border-left: 5px solid transparent;
+  border-right: 5px solid transparent;
+  border-top: 5px solid black;
+  visibility: hidden;
+}
+
+.dataGrid th.sort-asc .sort-arrow {
+  visibility: visible;
+  border-top: 5px solid black;
+}
+
+.dataGrid th.sort-desc .sort-arrow {
+  visibility: visible;
+  border-bottom: 5px solid black;
+  border-top: none;
+}
+
+.dataGrid tr:hover {
+  background-color: #f1f1f1;
+}
+
 
 .spacerRow {
   height: 100%; /* Ensure it fills the remaining space */

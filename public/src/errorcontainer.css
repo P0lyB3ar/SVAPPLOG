@@ -1,0 +1,32 @@
+.error-container {
+    display: none; /* Hidden by default */
+    background-color: #9c010e;
+    color: #ffffff;
+    border: 1px solid #a00818;
+    padding: 5px;
+    border-radius: 5px;
+    position: absolute;
+    top: 10px; /* Positioning relative to the header */
+    right: 20px; /* Positioning relative to the header */
+    box-sizing: border-box;
+    max-height: 50px;
+    max-width: 400px; /* Optional: Limit width of error message */
+    z-index: 1000; /* Ensure it is above other elements */
+    margin-top: 8px;
+}
+
+  .close-btn {
+    position: absolute;
+    top: 0px;
+    right: 10px;
+    font-size: 20px;
+    cursor: pointer;
+  }
+  
+  .close-btn:hover {
+    color: #000;
+  }
+
+  .error-container .error-text{
+    margin-top: 20px;
+  }

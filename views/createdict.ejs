@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Create Dictionary</title>
+    <script>
+        function addActionField() {
+            const container = document.getElementById('actions');
+            const newAction = document.createElement('div');
+            newAction.className = 'action';
+            newAction.innerHTML = `
+                <input type="text" name="actions[]" placeholder="Action" required />
+            `;
+            container.appendChild(newAction);
+        }
+    </script>
+</head>
+<body>
+    <h1>Create Dictionary</h1>
+    <form action="/create-dictionary" method="POST">
+        <label for="name">Dictionary Name:</label>
+        <input type="text" id="name" name="name" required /><br><br>
+
+        <div id="actions">
+            <div class="action">
+                <input type="text" name="actions[]" placeholder="Action" required />
+            </div>
+        </div>
+
+        <button type="button" onclick="addActionField()">Add Action</button><br><br>
+
+        <button type="submit">Create Dictionary</button>
+    </form>
+</body>
+</html>

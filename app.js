@@ -5,8 +5,8 @@ const path = require('path');
 const dotenv = require('dotenv');
 const session = require('express-session');
 const morgan = require('morgan');
+const jwt = require('jsonwebtoken'); // Import jsonwebtoken
 
-const crypto = require('crypto');
 
 dotenv.config(); // Load environment variables from .env file
 
@@ -23,7 +23,6 @@ app.use(session({
     resave: true,
     saveUninitialized: true
 }));
-
 
 // Body parser middleware
 app.use(bodyParser.json());
@@ -52,6 +51,9 @@ app.use((req, res, next) => {
     console.log('Session:', req.session);
     next();
 });
+
+// JWT Secret
+const JWT_SECRET = process.env.JWT_SECRET;
 
 // Render the registration form
 app.get('/register', (req, res) => {
@@ -113,7 +115,6 @@ app.get('/', (req, res) => {
     res.redirect('/home');
 });
 
-
 // Render the home page if logged in
 app.get('/home', (req, res) => {
     console.log('Home route accessed');
@@ -126,15 +127,14 @@ app.get('/home', (req, res) => {
     }
 });
 
+// Generate JWT API Key
 app.get('/genapikey', (req, res) => {
     if (req.session.loggedin) {
         try {
-            const secret = 'your-secret-key'; // You should use a secure, private key here
-            const token = crypto.randomUUID();
-            const hashedToken = crypto.createHmac('sha256', secret)
-                                      .update(token)
-                                      .digest('hex');
-            res.json({ apiKey: hashedToken });
+            const payload = { username: req.session.username };
+            const options = { expiresIn: '30d' }; // Token valid for 30 days
+            const token = jwt.sign(payload, JWT_SECRET, options);
+            res.json({ apiKey: token });
         } catch (error) {
             console.error('Error generating API key:', error);
             res.status(500).send('Internal Server Error');
@@ -146,7 +146,6 @@ app.get('/genapikey', (req, res) => {
 });
 
 // Write endpoint
-// Endpoint to write data to the database
 app.post('/write', async (req, res) => {
     const jsonData = req.body;
     const dictName = req.query.name; // Get dictionary name from query parameter
@@ -194,8 +193,6 @@ app.post('/write', async (req, res) => {
         return res.status(500).json({ error: 'Internal Server Error' });
     }
 });
-
-
 
 // Read endpoint
 app.get('/read', async (req, res) => {

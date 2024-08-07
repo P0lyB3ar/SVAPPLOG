@@ -1,81 +1,23 @@
-import React, { useState } from 'react';
-import 'bootstrap/dist/css/bootstrap.min.css';
-import './registerlogin.css'; // Import your custom CSS
-
-function RegistrationForm() {
-  const [formData, setFormData] = useState({
-    username: '',
-    password: ''
-  });
-
-  const handleChange = (event) => {
-    const { name, value } = event.target;
-    setFormData({
-      ...formData,
-      [name]: value
-    });
-  };
-
-  const handleSubmit = (event) => {
-    event.preventDefault();
-    // Implement your registration logic here, such as sending data to the backend
-    console.log('Form submitted:', formData);
-    // Example: send a POST request to the server
-    // fetch('/register', {
-    //   method: 'POST',
-    //   headers: { 'Content-Type': 'application/json' },
-    //   body: JSON.stringify(formData)
-    // })
-    // .then(response => response.json())
-    // .then(data => console.log('Success:', data))
-    // .catch(error => console.error('Error:', error));
-  };
-
-  return (
-    <div className="container mt-5">
-      <div className="row justify-content-center">
-        <div className="col-md-6">
-          <div className="card">
-            <div className="card-body">
-              <h2 className="card-title text-center">User Registration</h2>
-              <form onSubmit={handleSubmit}>
-                <div className="form-group">
-                  <label htmlFor="username">Username</label>
-                  <input
-                    type="text"
-                    id="username"
-                    name="username"
-                    className="form-control"
-                    placeholder="Username"
-                    value={formData.username}
-                    onChange={handleChange}
-                    required
-                  />
-                </div>
-                <div className="form-group">
-                  <label htmlFor="password">Password</label>
-                  <input
-                    type="password"
-                    id="password"
-                    name="password"
-                    className="form-control"
-                    placeholder="Password"
-                    value={formData.password}
-                    onChange={handleChange}
-                    required
-                  />
-                </div>
-                <button type="submit" className="btn btn-primary btn-block">Register</button>
-              </form>
-              <div className="login-link mt-3 text-center">
-                <p>Already have a profile? <a href="/login">Login</a></p>
-              </div>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="src/registerlogin.css" >
+    <script src="src/register.js"></script>
+    <title>User Registration</title>
+</head>
+<body>
+    <div class="registration-form">
+        <h2>UseSr Registration</h2>
+        <form action="/register" method="POST">
+            <input type="text" name="username" placeholder="Username" required>
+            <input type="password" name="password" placeholder="Password" required>
+            <button type="submit">Register</button> 
+            <div class="login-link">
+                <p>Allready have profile: <a href="login">Login</a>    </p>
             </div>
-          </div>
-        </div>
-      </div>
+        </form>
     </div>
-  );
-}
-
-export default RegistrationForm;
+</body>
+</html> 
