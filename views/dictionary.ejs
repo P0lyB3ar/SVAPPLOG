@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dictionary: <%= Object.keys(dictionary)[0] %></title>
+    <script>
+        function enableEditing(event) {
+            const target = event.target;
+            target.contentEditable = true;
+            target.focus();
+        }
+
+        async function saveChanges(event, dictionaryName) {
+            const target = event.target;
+            target.contentEditable = false;
+
+            const newActions = Array.from(document.querySelectorAll('.action-item')).map(item => item.innerText);
+
+            try {
+                const response = await fetch('/update-dictionary', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ name: dictionaryName, newActions })
+                });
+
+                if (!response.ok) {
+                    alert('Failed to update the dictionary');
+                }
+            } catch (error) {
+                console.error('Error updating dictionary:', error);
+                alert('An error occurred while updating the dictionary');
+            }
+        }
+    </script>
+</head>
+<body>
+    <h1>Dictionary: <%= Object.keys(dictionary)[0] %></h1>
+    <ul>
+        <% dictionary[Object.keys(dictionary)[0]].forEach(action => { %>
+            <li class="action-item" ondblclick="enableEditing(event)" onblur="saveChanges(event, '<%= Object.keys(dictionary)[0] %>')"><%= action %></li>
+        <% }); %>
+    </ul>
+    <a href="/dictionaries">Back to all dictionaries</a>
+</body>
+</html>

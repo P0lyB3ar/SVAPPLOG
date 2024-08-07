@@ -288,9 +288,56 @@ app.post('/create-dictionary', async (req, res) => {
 app.get('/dictionaries', async (req, res) => {
     try {
         const result = await pool.query('SELECT * FROM dictionaries');
-        res.status(200).json(result.rows);
+        res.status(200).render('dictionaries', { dictionaries: result.rows });
     } catch (error) {
         console.error('Error fetching dictionaries:', error);
+        res.status(500).render('error', { error: 'Internal server error' });
+    }
+});
+
+app.get('/dictionary/:name', async (req, res) => {
+    const { name } = req.params;
+
+    try {
+        const result = await pool.query('SELECT * FROM dictionaries WHERE name = $1', [name]);
+        if (result.rows.length === 0) {
+            return res.status(404).render('error', { error: 'Dictionary not found' });
+        }
+
+        let dictionary = result.rows[0].data;
+
+        // Check if dictionary is a string and needs parsing
+        if (typeof dictionary === 'string') {
+            dictionary = JSON.parse(dictionary);
+        }
+
+        res.status(200).render('dictionary', { dictionary });
+    } catch (error) {
+        console.error('Error fetching dictionary:', error);
+        res.status(500).render('error', { error: 'Internal server error' });
+    }
+});
+
+app.post('/update-dictionary', async (req, res) => {
+    const { name, newActions } = req.body;
+
+    if (!name || !newActions || newActions.length === 0) {
+        return res.status(400).json({ error: 'Name and new actions are required' });
+    }
+
+    try {
+        const result = await pool.query(
+            'UPDATE dictionaries SET data = $1 WHERE name = $2 RETURNING *',
+            [JSON.stringify({ [name]: newActions }), name]
+        );
+
+        if (result.rowCount === 0) {
+            return res.status(404).json({ error: 'Dictionary not found' });
+        }
+
+        res.status(200).json(result.rows[0]);
+    } catch (error) {
+        console.error('Error updating dictionary:', error);
         res.status(500).json({ error: 'Internal server error' });
     }
 });
