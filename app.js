@@ -5,8 +5,9 @@ const path = require('path');
 const dotenv = require('dotenv');
 const session = require('express-session');
 const morgan = require('morgan');
-const jwt = require('jsonwebtoken'); // Import jsonwebtoken
-
+const jwt = require('jsonwebtoken');
+const argon2 = require('argon2');
+const cookieParser = require('cookie-parser');
 
 dotenv.config(); // Load environment variables from .env file
 
@@ -19,7 +20,7 @@ app.use(morgan('dev'));
 
 // Session setup
 app.use(session({
-    secret: 'secret',
+    secret: process.env.SESSION_SECRET, // Use environment variable for session secret
     resave: true,
     saveUninitialized: true
 }));
@@ -31,11 +32,6 @@ app.use(bodyParser.urlencoded({ extended: true }));
 // Static files middleware for the public directory
 app.use(express.static(path.join(__dirname, 'public')));
 app.set('views', path.join(__dirname, 'views'));
-
-const dictionaries = {
-    1: ["login", "logout", "signup", "register"],
-    // Add other dictionary IDs and their types here
-};
 
 // PostgreSQL pool setup using environment variables
 const pool = new Pool({
@@ -52,29 +48,93 @@ app.use((req, res, next) => {
     next();
 });
 
-// JWT Secret
+// JWT Secret from environment variables
 const JWT_SECRET = process.env.JWT_SECRET;
+app.use(cookieParser());
+
+const authenticateAndAuthorize = (requiredRoles) => {
+    return async (req, res, next) => {
+        try {
+            // Extract JWT token from cookies
+            const token = req.cookies.jwt;
+
+            if (!token) {
+                return res.redirect('/login');
+                
+            }
+
+            jwt.verify(token, process.env.JWT_SECRET, async (err, user) => {
+                if (err) {
+                    return res.redirect('/login');
+                }
+
+                // Log the entire decoded user object
+                console.log('Decoded token payload:', user);
+
+                // Check for the username in the decoded token
+                const username = user && user.username;
+                console.log('Username from token:', username);
+
+                if (!username) {
+                    return res.redirect('/login');
+                }
+
+                req.user = { username: username };
+
+                // Modify the query to use username instead of user_id
+                const query = 'SELECT role FROM users WHERE username = $1';
+                const values = [username];
+
+                const result = await pool.query(query, values);
+
+                // Log the raw result from the database query
+                console.log('Raw result from database:', result);
+
+                if (result.rowCount === 0) {
+                    return res.status(404).json({ message: 'User not found' });
+                }
+
+                const userRole = result.rows[0].role;
+                console.log('User role from database:', userRole);
+
+                // Check if the user's role is included in the requiredRoles array
+                if (!requiredRoles.includes(userRole)) {
+                    return res.redirect('/login');
+                }
+
+                next();
+            });
+        } catch (error) {
+            console.error('Authentication/Authorization Error:', error.message);
+            return res.status(500).json({ message: 'Internal Server Error' });
+        }
+    };
+};
+
 
 // Render the registration form
 app.get('/register', (req, res) => {
     res.render('register');
 });
 
-// Endpoint to handle user registration
+// Handle user registration
 app.post('/register', async (req, res) => {
     const { username, password } = req.body;
     const createdOn = new Date();
-    const role = 'user'; // Default role, you can change it as needed
+    const role = 'user'; // Default role
 
     try {
-        const result = await pool.query(
-            'INSERT INTO users (username, password, created_on, role) VALUES ($1, $2, $3, $4) RETURNING *',
-            [username, password, createdOn, role] // Storing plain text password
+        // Hash the password with Argon2 before storing it
+        const hashedPassword = await argon2.hash(password);
+
+        await pool.query(
+            'INSERT INTO users (username, password, created_on, role) VALUES ($1, $2, $3, $4)',
+            [username, hashedPassword, createdOn, role]
         );
+
         res.status(201).redirect('/login');
     } catch (error) {
         if (error.code === '23505') {
-            // Unique constraint violation (username already exists)
             res.status(409).json({ error: 'Username already exists' });
         } else {
             console.error('Error registering user:', error);
@@ -88,86 +148,79 @@ app.get('/login', (req, res) => {
     res.render('login');
 });
 
-// Endpoint to handle user login
+// Handle user login
 app.post('/login', async (req, res) => {
     const { username, password } = req.body;
+    console.log('Login attempt:', { username, password });
 
     try {
-        const result = await pool.query('SELECT * FROM users WHERE username = $1 AND password = $2', [username, password]);
+        const result = await pool.query('SELECT * FROM users WHERE username = $1', [username]);
         const user = result.rows[0];
+        console.log('Fetched user:', user);
 
-        if (user) {
-            req.session.loggedin = true;
-            req.session.username = username;
-            res.redirect('/home');
+        if (user && await argon2.verify(user.password, password)) {
+            const payload = { username: user.username, role: user.role };
+            const token = jwt.sign(payload, JWT_SECRET, { expiresIn: '30d' });
+
+            res.cookie('jwt', token, {
+                httpOnly: true,  // JavaScript can't access this cookie
+                sameSite: 'Strict',  // Helps prevent CSRF attacks
+                maxAge: 30 * 24 * 60 * 60 * 1000 // Cookie expiry (30 days)
+            });
+
+            res.json({ token }); // Send the token as response
         } else {
-            res.send('Incorrect Username and/or Password!');
+            console.log('Login failed: Incorrect credentials');
+            res.status(401).send('Incorrect Username or Password!');
         }
     } catch (error) {
         console.error('Error logging in user:', error);
-        res.status(500).json({ error: 'Internal server error' });
+        res.status(500).send('Internal server error');
     }
 });
 
-// Root route to render login or redirect to home based on authentication
 app.get('/', (req, res) => {
-    console.log('Root route accessed, redirecting to /home');
     res.redirect('/home');
 });
 
-// Render the home page if logged in
-app.get('/home', (req, res) => {
-    console.log('Home route accessed');
-    if (req.session.loggedin) {
+
+app.get('/home', authenticateAndAuthorize(['user','admin','owner']), (req, res) => {
+
         console.log('User is logged in, serving index.html');
         res.sendFile(path.join(__dirname, 'views', 'index.html')); // Serve index.html if logged in
-    } else {
-        console.log('User is not logged in, redirecting to /login');
-        res.redirect('/login');
-    }
 });
 
-// Generate JWT API Key
+// Generate JWT API Key (accessible with JWT token)
 app.get('/genapikey', (req, res) => {
-    if (req.session.loggedin) {
-        try {
-            const payload = { username: req.session.username };
-            const options = { expiresIn: '30d' }; // Token valid for 30 days
-            const token = jwt.sign(payload, JWT_SECRET, options);
-            res.json({ apiKey: token });
-        } catch (error) {
-            console.error('Error generating API key:', error);
-            res.status(500).send('Internal Server Error');
-        }
-    } else {
-        console.log('User is not logged in, redirecting to /login');
-        res.redirect('/login');
+    try {
+        const payload = { username: req.user.username };
+        const options = { expiresIn: '30d' }; // Token valid for 30 days
+        const token = jwt.sign(payload, JWT_SECRET, options);
+        res.json({ apiKey: token });
+    } catch (error) {
+        console.error('Error generating API key:', error);
+        res.status(500).send('Internal Server Error');
     }
 });
 
-// Write endpoint
-app.post('/write', async (req, res) => {
+// Write endpoint (only accessible by users with 'admin' role)
+app.post('/write', authenticateAndAuthorize(['admin','owner']), async (req, res) => {
     const jsonData = req.body;
-    const dictName = req.query.name; // Get dictionary name from query parameter
-    const path = req.path; // Get the request path
+    const dictName = req.query.name;
+    const path = req.path;
 
     if (!dictName) {
         return res.status(400).json({ error: 'Dictionary name is required' });
     }
 
     try {
-        // Fetch dictionary types from the database
-        const dictResult = await pool.query(
-            'SELECT data FROM dictionaries WHERE name = $1',
-            [dictName]
-        );
+        const dictResult = await pool.query('SELECT data FROM dictionaries WHERE name = $1', [dictName]);
 
         if (dictResult.rowCount === 0) {
             return res.status(404).json({ error: `Dictionary with name '${dictName}' not found` });
         }
 
         const predefinedTypes = Object.keys(dictResult.rows[0].data);
-
         const entries = Object.entries(jsonData);
         const results = [];
 
@@ -194,8 +247,8 @@ app.post('/write', async (req, res) => {
     }
 });
 
-// Read endpoint
-app.get('/read', async (req, res) => {
+// Read endpoint (accessible by all authenticated users)
+app.get('/read',  authenticateAndAuthorize(['user','admin','owner']), async (req, res) => {
     const logs = req.query.logs;
     const sort = req.query.sort;
     const dictName = req.query.name;
@@ -222,18 +275,13 @@ app.get('/read', async (req, res) => {
         const result = await pool.query(query, queryParams);
 
         if (dictName) {
-            // Fetch dictionary data to format the response
-            const dictResult = await pool.query(
-                'SELECT data FROM dictionaries WHERE name = $1',
-                [dictName]
-            );
+            const dictResult = await pool.query('SELECT data FROM dictionaries WHERE name = $1', [dictName]);
 
             if (dictResult.rowCount === 0) {
                 return res.status(404).json({ error: `Dictionary with name '${dictName}' not found` });
             }
 
             const predefinedTypes = dictResult.rows[0].data;
-
             const dictResultFormatted = result.rows.reduce((acc, log) => {
                 const type = log.type || 'undefined';
                 if (predefinedTypes[type]) {
@@ -255,11 +303,9 @@ app.get('/read', async (req, res) => {
     }
 });
 
-app.post('/create-dictionary', async (req, res) => {
+// Create dictionary endpoint (requires 'admin' role)
+app.post('/create-dictionary', authenticateAndAuthorize(['admin','owner']), async (req, res) => {
     const { name, actions } = req.body;
-
-    // Debugging: Log the received data
-    console.log('Received data:', req.body);
 
     if (!name || !actions || actions.length === 0) {
         return res.status(400).json({ error: 'Name and actions are required' });
@@ -268,7 +314,6 @@ app.post('/create-dictionary', async (req, res) => {
     const data = { [name]: actions };
 
     try {
-        // Insert dictionary into the database
         const result = await pool.query(
             'INSERT INTO dictionaries (name, data) VALUES ($1, $2) RETURNING *',
             [name, JSON.stringify(data)]
@@ -276,7 +321,6 @@ app.post('/create-dictionary', async (req, res) => {
         res.status(201).json(result.rows[0]);
     } catch (error) {
         if (error.code === '23505') {
-            // Unique constraint violation (dictionary name already exists)
             res.status(409).json({ error: 'Dictionary name already exists' });
         } else {
             console.error('Error creating dictionary:', error);
@@ -285,6 +329,7 @@ app.post('/create-dictionary', async (req, res) => {
     }
 });
 
+// Fetch dictionaries (accessible by all authenticated users)
 app.get('/dictionaries', async (req, res) => {
     try {
         const result = await pool.query('SELECT * FROM dictionaries');
@@ -295,6 +340,7 @@ app.get('/dictionaries', async (req, res) => {
     }
 });
 
+// Fetch a specific dictionary (accessible by all authenticated users)
 app.get('/dictionary/:name', async (req, res) => {
     const { name } = req.params;
 
@@ -306,7 +352,6 @@ app.get('/dictionary/:name', async (req, res) => {
 
         let dictionary = result.rows[0].data;
 
-        // Check if dictionary is a string and needs parsing
         if (typeof dictionary === 'string') {
             dictionary = JSON.parse(dictionary);
         }
@@ -318,7 +363,8 @@ app.get('/dictionary/:name', async (req, res) => {
     }
 });
 
-app.post('/update-dictionary', async (req, res) => {
+// Update dictionary (requires 'admin' role)
+app.post('/update-dictionary', authenticateAndAuthorize(['admin','owner']), async (req, res) => {
     const { name, newActions } = req.body;
 
     if (!name || !newActions || newActions.length === 0) {
@@ -342,8 +388,43 @@ app.post('/update-dictionary', async (req, res) => {
     }
 });
 
-app.get('/create-dictionary', (req, res) => {
+// Render dictionary creation form (requires 'admin' role)
+app.get('/create-dictionary', authenticateAndAuthorize(['admin','owner']), (req, res) => {
     res.render('createdict');
+});
+
+app.get("/user-dashboard", authenticateAndAuthorize(['owner']), async (req, res) => {
+    try {
+        const result = await pool.query('SELECT * FROM users');
+        res.status(200).render('users', {users: result.rows });
+    } catch (error) {
+        console.error('Error fetching users:', error);
+        res.status(500).render('error', { error: 'Internal server error' });
+    }
+});
+
+app.post('/update-role', authenticateAndAuthorize(['owner']), async (req, res) => {
+    const { user_id, role } = req.body;
+
+    if (!user_id || !role) {
+        return res.status(400).json({ error: 'User ID and role are required' });
+    }
+
+    try {
+        const result = await pool.query(
+            'UPDATE users SET role = $1 WHERE user_id = $2 RETURNING *',
+            [role, user_id]
+        );
+
+        if (result.rowCount === 0) {
+            return res.status(404).json({ error: 'User not found' });
+        }
+
+        res.redirect('/user-dashboard');
+    } catch (error) {
+        console.error('Error updating role:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
 });
 
 app.listen(port, () => {

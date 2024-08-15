@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>User Dashboard</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        table, th, td {
+            border: 1px solid #ddd;
+        }
+        th, td {
+            padding: 8px;
+            text-align: left;
+        }
+        th {
+            background-color: #f4f4f4;
+        }
+        h1 {
+            text-align: center;
+            margin-top: 20px;
+        }
+        form {
+            margin: 0;
+        }
+        select {
+            padding: 5px;
+        }
+        button {
+            padding: 5px 10px;
+            margin-left: 10px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <h1>User Dashboard</h1>
+    <% if (users.length > 0) { %>
+        <table>
+            <thead>
+                <tr>
+                    <th>User ID</th>
+                    <th>Username</th>
+                    <th>Role</th>
+                    <th>Created On</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                <% users.forEach(function(user) { %>
+                    <tr>
+                        <td><%= user.user_id %></td>
+                        <td><%= user.username %></td>
+                        <td>
+                            <form action="/update-role" method="POST">
+                                <input type="hidden" name="user_id" value="<%= user.user_id %>">
+                                <select name="role">
+                                    <option value="admin" <%= user.role === 'admin' ? 'selected' : '' %>>Admin</option>
+                                    <option value="owner" <%= user.role === 'owner' ? 'selected' : '' %>>Owner</option>
+                                    <option value="user" <%= user.role === 'user' ? 'selected' : '' %>>User</option>
+                                </select>
+                                <button type="submit">Update</button>
+                            </form>
+                        </td>
+                        <td><%= new Date(user.created_on).toLocaleString() %></td>
+                    </tr>
+                <% }) %>
+            </tbody>
+        </table>
+    <% } else { %>
+        <p>No users found.</p>
+    <% } %>
+</body>
+</html>

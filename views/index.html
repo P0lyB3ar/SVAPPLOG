@@ -51,105 +51,29 @@
     <p>For contact: <a href="mailto:vaskokole@abv.bg">vaskokole@abv.bg</a> / <a href="mailto:p0lyb3ar@proton.me">p0lyb3ar@proton.me</a></p>
   </div>
   <script>
-    class TrieNode {
-      constructor() {
-        this.children = {};
-        this.isEndOfWord = false;
-      }
-    }
-
-    class Trie {
-      constructor() {
-        this.root = new TrieNode();
-      }
-
-      insert(word) {
-        let node = this.root;
-        for (let char of word) {
-          if (!node.children[char]) {
-            node.children[char] = new TrieNode();
-          }
-          node = node.children[char];
-        }
-        node.isEndOfWord = true;
-      }
-
-      search(word) {
-        let node = this.root;
-        for (let char of word) {
-          if (!node.children[char]) {
-            return false;
-          }
-          node = node.children[char];
-        }
-        return node.isEndOfWord;
-      }
-
-      startsWith(prefix) {
-        let node = this.root;
-        for (let char of prefix) {
-          if (!node.children[char]) {
-            return false;
-          }
-          node = node.children[char];
-        }
-        return true;
-      }
-
-      collectWords(node = this.root, prefix = '', result = []) {
-        if (node.isEndOfWord) {
-          result.push(prefix);
-        }
-        for (let char in node.children) {
-          this.collectWords(node.children[char], prefix + char, result);
-        }
-        return result;
-      }
-    }
-
-    function mergeSort(arr, key) {
-      if (arr.length <= 1) return arr;
-
-      const middle = Math.floor(arr.length / 2);
-      const left = arr.slice(0, middle);
-      const right = arr.slice(middle);
-
-      return merge(mergeSort(left, key), mergeSort(right, key), key);
-    }
-
-    function merge(left, right, key) {
-      let result = [];
-      let leftIndex = 0;
-      let rightIndex = 0;
-
-      while (leftIndex < left.length && rightIndex < right.length) {
-        if (left[leftIndex][key] < right[rightIndex][key]) {
-          result.push(left[leftIndex]);
-          leftIndex++;
-        } else {
-          result.push(right[rightIndex]);
-          rightIndex++;
-        }
-      }
-
-      return result.concat(left.slice(leftIndex)).concat(right.slice(rightIndex));
-    }
-
-    let currentSort = {
-      key: null,
-      direction: 'asc'
-    };
-
     document.getElementById('fetchButton').addEventListener('click', fetchData);
     document.getElementById('type').addEventListener('change', fetchData);
 
     function fetchData() {
+      const token = sessionStorage.getItem('jwtToken');
+      if (!token) {
+        alert('You must be logged in to access this page.');
+        window.location.href = '/login';  // Redirect to login if token is missing
+        return;
+      }
+
       const typeValue = document.getElementById('type').value;
       const url = `http://localhost:8000/read?logs=all&dict=1&sort=${typeValue}`;
 
       console.log('Fetching data from URL:', url); // Debugging
 
-      fetch(url)
+      fetch(url, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      })
         .then(response => {
           if (!response.ok) {
             throw new Error('Network response was not ok ' + response.statusText);
