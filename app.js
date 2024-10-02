@@ -11,6 +11,7 @@ const cookieParser = require('cookie-parser');
 const passport = require('passport');
 const JwtStrategy = require('passport-jwt').Strategy;
 const ExtractJwt = require('passport-jwt').ExtractJwt;
+const crypto = require('crypto');
 
 dotenv.config(); // Load environment variables from .env file
 
@@ -331,33 +332,45 @@ app.get('/create-application', authenticateAndAuthorize(['user', 'admin', 'owner
     res.render('applications');
 });
 
-// POST /create-application: Handle application creation form submission
 app.post('/create-application', authenticateAndAuthorize(['user', 'admin', 'owner']), async (req, res) => {
-    const { applicationName } = req.body;
+    const { applicationName, organisationName } = req.body;
     const userId = req.user.user_id;
 
-    if (!applicationName) {
-        return res.status(400).json({ error: 'Application name is required' });
+    // Validate that both application name and organisation name are provided
+    if (!applicationName || !organisationName) {
+        return res.status(400).json({ error: 'Application name and organisation name are required' });
     }
 
     try {
-        const userUpdateQuery = `
-            UPDATE users
-            SET application = $1
-            WHERE user_id = $2
+        // Generate a secure application secret
+        const applicationSecret = crypto.randomBytes(32).toString('hex');
+
+        // Prepare the SQL query to insert the new application
+        const applicationInsertQuery = `
+            INSERT INTO applications (name, secret, organisation, user_id)
+            VALUES ($1, $2, $3, $4)
             RETURNING *;
         `;
-        const userUpdateValues = [applicationName, userId];
-        const userResult = await pool.query(userUpdateQuery, userUpdateValues);
-        const updatedUser = userResult.rows[0];
+        const applicationInsertValues = [applicationName, applicationSecret, organisationName, userId];
 
-        if (!updatedUser) {
-            return res.status(404).json({ error: 'User not found' });
+        // Execute the query to insert the application
+        const appResult = await pool.query(applicationInsertQuery, applicationInsertValues);
+        const createdApplication = appResult.rows[0];
+
+        // Check if the application was created successfully
+        if (!createdApplication) {
+            return res.status(500).json({ error: 'Failed to create application' });
         }
 
+        // Respond with the created application details, including the secret
         res.status(201).json({
-            message: 'Application created and assigned to user',
-            user: updatedUser,
+            message: 'Application created successfully',
+            application: {
+                name: createdApplication.name,
+                secret: createdApplication.secret,
+                organisation: createdApplication.organisation,
+                user_id: createdApplication.user_id,
+            },
         });
     } catch (error) {
         console.error('Error creating application:', error);
@@ -365,17 +378,72 @@ app.post('/create-application', authenticateAndAuthorize(['user', 'admin', 'owne
     }
 });
 
+
+
+app.get('/list-applications', authenticateAndAuthorize(['user', 'admin', 'owner']), async (req, res) => {
+    const userId = req.user.user_id;  // Extract user_id from the authenticated request
+
+    console.log('User ID from JWT:', userId);
+
+    try {
+        // Query to fetch all applications associated with the user
+        const applicationQuery = `
+            SELECT application 
+            FROM users 
+            WHERE user_id = $1
+        `;
+        const applicationValues = [userId];
+        
+        const result = await pool.query(applicationQuery, applicationValues);
+
+        // Log the result for debugging
+        console.log('User application query result:', result.rows);
+
+        if (result.rowCount === 0) {
+            return res.status(404).json({ message: 'No applications found for the user' });
+        }
+
+        const applications = result.rows.map(row => row.application);  // Extract application names
+
+        res.status(200).json({
+            message: 'Applications retrieved successfully',
+            applications: applications
+        });
+    } catch (error) {
+        console.error('Error fetching applications:', error);
+        res.status(500).json({ message: 'Internal Server Error' });
+    }
+});
+
+
 // Write endpoint (only accessible by users with 'admin' role)
-app.post('/write', authenticateAndAuthorize(['admin','owner']), async (req, res) => {
+app.post('/write', async (req, res) => {
+    const { applicationSecret, organisationName, applicationName } = req.headers;
     const jsonData = req.body;
     const dictName = req.query.name;
     const path = req.path;
 
-    if (!dictName) {
-        return res.status(400).json({ error: 'Dictionary name is required' });
+    if (!applicationSecret || !organisationName || !applicationName) {
+        return res.status(400).json({ error: 'Application secret, organisation, and application names are required' });
     }
 
     try {
+        // Verify the application secret and ensure it matches the organisation and application
+        const appQuery = `
+            SELECT * FROM applications
+            WHERE name = $1 AND secret = $2 AND organisation = $3
+        `;
+        const appResult = await pool.query(appQuery, [applicationName, applicationSecret, organisationName]);
+
+        if (appResult.rowCount === 0) {
+            return res.status(403).json({ error: 'Invalid application secret or organisation/application mismatch' });
+        }
+
+        // Proceed with the regular logic
+        if (!dictName) {
+            return res.status(400).json({ error: 'Dictionary name is required' });
+        }
+
         const dictResult = await pool.query('SELECT data FROM dictionaries WHERE name = $1', [dictName]);
 
         if (dictResult.rowCount === 0) {
@@ -390,8 +458,8 @@ app.post('/write', authenticateAndAuthorize(['admin','owner']), async (req, res)
             if (predefinedTypes.includes(type)) {
                 try {
                     const result = await pool.query(
-                        'INSERT INTO logs (dict_name, type, data, path) VALUES ($1, $2, $3, $4) RETURNING *',
-                        [dictName, type, data, path]
+                        'INSERT INTO logs (dict_name, type, data, path, application_name, organisation_name) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *',
+                        [dictName, type, data, path, applicationName, organisationName]
                     );
                     results.push(result.rows[0]);
                 } catch (error) {
@@ -404,10 +472,11 @@ app.post('/write', authenticateAndAuthorize(['admin','owner']), async (req, res)
         }
         return res.status(201).json(results);
     } catch (error) {
-        console.error('Error fetching dictionary data:', error);
+        console.error('Error fetching dictionary data or validating application:', error);
         return res.status(500).json({ error: 'Internal Server Error' });
     }
 });
+
 
 // Read endpoint (accessible by all authenticated users)
 app.get('/read',  authenticateAndAuthorize(['user','admin','owner']), async (req, res) => {
