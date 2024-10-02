@@ -12,12 +12,18 @@ const passport = require('passport');
 const JwtStrategy = require('passport-jwt').Strategy;
 const ExtractJwt = require('passport-jwt').ExtractJwt;
 const crypto = require('crypto');
+const cors = require('cors');
 
 dotenv.config(); // Load environment variables from .env file
 
 const app = express();
 const port = 8000;
 app.set('view engine', 'ejs');
+
+app.use(cors({
+    origin: 'http://localhost:3000', // Frontend URL
+    credentials: true // Allow cookies to be sent
+  }));
 
 const opts = {
     jwtFromRequest: (req) => req.cookies.jwt, // Extract token from cookies
@@ -200,17 +206,16 @@ app.post('/login', async (req, res) => {
         console.log('Fetched user:', user);
 
         if (user && await argon2.verify(user.password, password)) {
-            // Include user_id in the payload
             const payload = { user_id: user.user_id, username: user.username, role: user.role };
             const token = jwt.sign(payload, JWT_SECRET, { expiresIn: '30d' });
 
             res.cookie('jwt', token, {
-                httpOnly: true,  // JavaScript can't access this cookie
-                sameSite: 'Strict',  // Helps prevent CSRF attacks
-                maxAge: 30 * 24 * 60 * 60 * 1000 // Cookie expiry (30 days)
+                httpOnly: true,
+                sameSite: 'Strict',
+                maxAge: 30 * 24 * 60 * 60 * 1000
             });
 
-            res.json({ token }); // Send the token as response
+            res.json({ token });
         } else {
             console.log('Login failed: Incorrect credentials');
             res.status(401).send('Incorrect Username or Password!');
@@ -220,7 +225,6 @@ app.post('/login', async (req, res) => {
         res.status(500).send('Internal server error');
     }
 });
-
 
 app.get('/', (req, res) => {
     res.redirect('/home');
@@ -570,6 +574,17 @@ app.get('/dictionaries', async (req, res) => {
         res.status(500).render('error', { error: 'Internal server error' });
     }
 });
+
+app.get('/list-dictionaries', async (req, res) => {
+    try {
+        const result = await pool.query('SELECT * FROM dictionaries');
+        res.status(200).json({ dictionaries: result.rows });
+    } catch (error) {
+        console.error('Error fetching dictionaries:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
 
 // Fetch a specific dictionary (accessible by all authenticated users)
 app.get('/dictionary/:name', async (req, res) => {

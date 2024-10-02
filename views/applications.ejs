@@ -6,6 +6,39 @@
         <input type="text" id="applicationName" name="applicationName" required>
     </div>
     <div>
+        <label for="organisationName">Select Organisation:</label>
+        <select id="organisationName" name="organisationName" required>
+            <option value="">Select an organisation</option>
+            <!-- Organisations will be populated here -->
+        </select>
+    </div>
+    <div>
         <button type="submit">Create Application</button>
     </div>
 </form>
+
+<script>
+    document.addEventListener("DOMContentLoaded", async function() {
+        try {
+            // Fetch organizations from the server
+            const response = await fetch('/list-organisations');
+            if (!response.ok) {
+                throw new Error('Network response was not ok');
+            }
+
+            const data = await response.json();
+            const organisations = data.organisations;
+
+            // Populate the dropdown menu
+            const organisationSelect = document.getElementById('organisationName');
+            organisations.forEach(org => {
+                const option = document.createElement('option');
+                option.value = org;  // Assuming 'org' contains the organisation name
+                option.textContent = org;  // Display the organisation name
+                organisationSelect.appendChild(option);
+            });
+        } catch (error) {
+            console.error('Error fetching organizations:', error);
+        }
+    });
+</script>

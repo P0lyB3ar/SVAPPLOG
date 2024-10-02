@@ -1,0 +1,38 @@
+.header {
+  position: fixed;
+  top: 0;
+  left: 0;
+  background: #174A6D;
+  font-family: 'Trebuchet MS', 'Lucida Sans Unicode', 'Lucida Grande', 'Lucida Sans', Arial, sans-serif;
+  color: rgb(255, 255, 255);
+  text-align: center;
+  width: 100%;
+  box-sizing: border-box;
+  z-index: 1000; /* Ensure header and its children (logo) are above the menu */
+  display: flex; /* Adjust to flex for better alignment */
+  align-items: center; /* Center items vertically */
+  justify-content: space-between; /* Space between items */
+  padding: 0 1rem; /* Add padding to keep content away from edges */
+  height: 65px;
+}
+
+.header .logo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-left: 60px;
+  z-index: 1010; /* Higher z-index than menu */
+  position: relative; /* Ensure relative positioning */
+}
+
+.header .logo img {
+  margin-left: px;
+  margin-top: 15px;
+  height: 6rem;
+  width: 6rem;
+  object-fit: cover;
+}
+
+.header .error-container {
+  display: none;
+}

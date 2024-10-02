@@ -1,0 +1,97 @@
+.main {
+  max-width: 100%;
+  flex-direction: column;
+  align-items: center;
+  background: rgb(212, 244, 255);
+  padding: 20px;
+  font-family: 'Trebuchet MS', 'Lucida Sans Unicode', 'Lucida Grande', 'Lucida Sans', Arial, sans-serif;
+  margin: 3rem 0 0;
+  height: 50.2rem; /* Ensure this is necessary */
+}
+
+.main h2 {
+  color: black;
+  font-size: 2rem; /* Use rem for consistency */
+}
+
+.main label {
+  font-size: 1.25rem; /* Use rem for consistency */
+  padding: 1rem; /* Use rem for consistency */
+}
+
+.main p {
+  font-size: 1rem; /* Use rem for consistency */
+}
+
+.main .item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  margin: 1rem 0; /* Use rem for consistency */
+}
+
+.main .item .right-group {
+  display: flex;
+  align-items: center;
+  margin-left: auto;
+  margin-right: 3.75rem; /* Adjusted to rem for consistency */
+}
+
+.main .item label {
+  margin-right: 0.3125rem; /* Adjusted to rem for consistency */
+  font-size: 1.5625rem; /* Adjusted to rem for consistency */
+}
+
+.main .item button {
+  margin-top: -0.875rem; /* Adjusted to rem for consistency */
+  margin-left: 1.25rem; /* Adjusted to rem for consistency */
+  padding: 0.53125rem 1.875rem; /* Adjusted to rem for consistency */
+  border: 0;
+  border-radius: 100px;
+  background-color: #2ba8fb;
+  color: #ffffff;
+  font-weight: bold;
+  transition: all 0.5s;
+  font-size: 1.25rem; /* Adjusted to rem for consistency */
+}
+
+.main .item button:hover {
+  background-color: #6fc5ff;
+  box-shadow: 0 0 1.25rem #6fc5ff50; /* Adjusted to rem for consistency */
+  transform: scale(1.1);
+}
+
+.main .item button:active {
+  background-color: #3d94cf;
+  transition: all 0.25s;
+  box-shadow: none;
+  transform: scale(0.98);
+}
+
+.main .item select {
+  width: auto;
+  height: auto;
+  font-size: 1.46875rem; /* Adjusted to rem for consistency */
+  background-color: var(--dropdown-background);
+  border-radius: var(--dropdown-border-radius);
+  color: var(--dropdown-text-color);
+  border: 1px solid var(--dropdown-border-color);
+}
+
+.main .item select:hover {
+  background-color: #6fc5ff;
+  box-shadow: 0 0 1.25rem #6fc5ff50; /* Adjusted to rem for consistency */
+  transform: scale(1.1);
+}
+
+.main .item select:active {
+  background-color: #3d94cf;
+  transition: all 0.25s;
+  box-shadow: none;
+  transform: scale(0.98);
+}
+
+.main .item select option {
+  font-size: 1.25rem; /* Adjusted to rem for consistency */
+}
