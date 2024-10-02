@@ -1,0 +1,11 @@
+<%- include('layout', { title: 'Create Organisation', body: '' }) %>
+
+<form action="/create-organisation" method="POST">
+    <div>
+        <label for="organisationName">Organisation Name:</label>
+        <input type="text" id="organisationName" name="organisationName" required>
+    </div>
+    <div>
+        <button type="submit">Create Organisation</button>
+    </div>
+</form>

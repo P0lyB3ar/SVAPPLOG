@@ -8,12 +8,20 @@ const morgan = require('morgan');
 const jwt = require('jsonwebtoken');
 const argon2 = require('argon2');
 const cookieParser = require('cookie-parser');
+const passport = require('passport');
+const JwtStrategy = require('passport-jwt').Strategy;
+const ExtractJwt = require('passport-jwt').ExtractJwt;
 
 dotenv.config(); // Load environment variables from .env file
 
 const app = express();
 const port = 8000;
 app.set('view engine', 'ejs');
+
+const opts = {
+    jwtFromRequest: (req) => req.cookies.jwt, // Extract token from cookies
+    secretOrKey: process.env.JWT_SECRET,
+};
 
 // Add morgan for logging
 app.use(morgan('dev'));
@@ -58,52 +66,64 @@ const authenticateAndAuthorize = (requiredRoles) => {
             // Extract JWT token from cookies
             const token = req.cookies.jwt;
 
+            // Log the token for debugging purposes
+            console.log('JWT Token from Cookies:', token);
+
             if (!token) {
                 return res.redirect('/login');
-                
             }
 
-            jwt.verify(token, process.env.JWT_SECRET, async (err, user) => {
+            // Verify the JWT token
+            jwt.verify(token, process.env.JWT_SECRET, async (err, decodedToken) => {
                 if (err) {
+                    console.error('JWT Verification Error:', err);
                     return res.redirect('/login');
                 }
-
-                // Log the entire decoded user object
-                console.log('Decoded token payload:', user);
-
-                // Check for the username in the decoded token
-                const username = user && user.username;
-                console.log('Username from token:', username);
-
-                if (!username) {
+            
+                // Log the decoded token payload for debugging
+                console.log('Decoded token payload:', decodedToken);
+            
+                // Extract the user_id and username from the token
+                const userId = decodedToken && decodedToken.user_id;
+                const username = decodedToken && decodedToken.username;
+            
+                if (!userId || !username) {
+                    console.error('Missing user_id or username in token');
                     return res.redirect('/login');
                 }
-
-                req.user = { username: username };
-
-                // Modify the query to use username instead of user_id
+            
+                // Attach user info to the request object for later use
+                req.user = { user_id: userId, username: username };
+            
+                // Modify the query to use username to fetch the user's role
                 const query = 'SELECT role FROM users WHERE username = $1';
                 const values = [username];
-
-                const result = await pool.query(query, values);
-
-                // Log the raw result from the database query
-                console.log('Raw result from database:', result);
-
-                if (result.rowCount === 0) {
-                    return res.status(404).json({ message: 'User not found' });
+            
+                try {
+                    const result = await pool.query(query, values);
+            
+                    // Log the result for debugging
+                    console.log('Database query result:', result);
+            
+                    if (result.rowCount === 0) {
+                        return res.status(404).json({ message: 'User not found' });
+                    }
+            
+                    const userRole = result.rows[0].role;
+                    console.log('User role from database:', userRole);
+            
+                    // Check if the user's role is included in the requiredRoles array
+                    if (!requiredRoles.includes(userRole)) {
+                        console.warn('Unauthorized access attempt by user:', username);
+                        return res.redirect('/login');
+                    }
+            
+                    next();
+                } catch (error) {
+                    console.error('Database Query Error:', error);
+                    return res.status(500).json({ message: 'Internal Server Error' });
                 }
-
-                const userRole = result.rows[0].role;
-                console.log('User role from database:', userRole);
-
-                // Check if the user's role is included in the requiredRoles array
-                if (!requiredRoles.includes(userRole)) {
-                    return res.redirect('/login');
-                }
-
-                next();
-            });
+            });            
         } catch (error) {
             console.error('Authentication/Authorization Error:', error.message);
             return res.status(500).json({ message: 'Internal Server Error' });
@@ -111,6 +131,26 @@ const authenticateAndAuthorize = (requiredRoles) => {
     };
 };
 
+
+
+passport.use(new JwtStrategy(opts, async (jwt_payload, done) => {
+    try {
+        // Find user by username (since you stored the username in the token payload)
+        const result = await pool.query('SELECT * FROM users WHERE username = $1', [jwt_payload.username]);
+
+        if (result.rowCount > 0) {
+            const user = result.rows[0];
+            return done(null, user);  // User found, pass it along to `req.user`
+        } else {
+            return done(null, false);  // No user found
+        }
+    } catch (err) {
+        return done(err, false);  // Error occurred during database query
+    }
+}));
+
+
+app.use(passport.initialize());
 
 // Render the registration form
 app.get('/register', (req, res) => {
@@ -159,7 +199,8 @@ app.post('/login', async (req, res) => {
         console.log('Fetched user:', user);
 
         if (user && await argon2.verify(user.password, password)) {
-            const payload = { username: user.username, role: user.role };
+            // Include user_id in the payload
+            const payload = { user_id: user.user_id, username: user.username, role: user.role };
             const token = jwt.sign(payload, JWT_SECRET, { expiresIn: '30d' });
 
             res.cookie('jwt', token, {
@@ -179,6 +220,7 @@ app.post('/login', async (req, res) => {
     }
 });
 
+
 app.get('/', (req, res) => {
     res.redirect('/home');
 });
@@ -191,7 +233,7 @@ app.get('/home', authenticateAndAuthorize(['user','admin','owner']), (req, res) 
 });
 
 // Generate JWT API Key (accessible with JWT token)
-app.get('/genapikey', (req, res) => {
+app.get('/genapikey', passport.authenticate('jwt', { session: false }), (req, res) => {
     try {
         const payload = { username: req.user.username };
         const options = { expiresIn: '30d' }; // Token valid for 30 days
@@ -200,6 +242,126 @@ app.get('/genapikey', (req, res) => {
     } catch (error) {
         console.error('Error generating API key:', error);
         res.status(500).send('Internal Server Error');
+    }
+});
+
+
+app.get('/create-organisation', authenticateAndAuthorize(['user','admin','owner']), (req, res) => {
+    res.render('organisations'); // Assuming 'organisations' is your form view
+});
+
+app.post('/create-organisation', authenticateAndAuthorize(['user', 'admin', 'owner']), async (req, res) => {
+    const { organisationName } = req.body;
+    const userId = req.user.user_id;
+
+    console.log('Request body:', req.body);
+    console.log('User ID from JWT:', userId);
+
+    if (!organisationName) {
+        return res.status(400).json({ error: 'Organisation name is required' });
+    }
+
+    try {
+        const userUpdateQuery = `
+            UPDATE users
+            SET organisation = $1
+            WHERE user_id = $2
+            RETURNING *;
+        `;
+        const userUpdateValues = [organisationName, userId];
+        
+        const userResult = await pool.query(userUpdateQuery, userUpdateValues);
+        console.log('User update result:', userResult.rows);
+
+        const updatedUser = userResult.rows[0];
+
+        if (!updatedUser) {
+            console.log('No user found with provided user ID');
+            return res.status(404).json({ error: 'User not found' });
+        }
+
+        res.status(201).json({
+            message: 'Organisation created and assigned to user',
+            user: updatedUser,
+        });
+    } catch (error) {
+        console.error('Error creating organisation:', error);
+        res.status(500).json({ error: 'Internal Server Error' });
+    }
+});
+
+app.get('/list-organisations', authenticateAndAuthorize(['user', 'admin', 'owner']), async (req, res) => {
+    const userId = req.user.user_id;  // Extract user_id from the authenticated request
+
+    console.log('User ID from JWT:', userId);
+
+    try {
+        // Query to fetch all organizations the user is associated with
+        const organisationQuery = `
+            SELECT organisation 
+            FROM users 
+            WHERE user_id = $1
+        `;
+        const organisationValues = [userId];
+        
+        const result = await pool.query(organisationQuery, organisationValues);
+
+        // Log the result for debugging
+        console.log('User organisation query result:', result.rows);
+
+        if (result.rowCount === 0) {
+            return res.status(404).json({ message: 'No organisations found for the user' });
+        }
+
+        const organisations = result.rows.map(row => row.organisation);  // Extract organization names
+
+        res.status(200).json({
+            message: 'Organisations retrieved successfully',
+            organisations: organisations
+        });
+    } catch (error) {
+        console.error('Error fetching organisations:', error);
+        res.status(500).json({ message: 'Internal Server Error' });
+    }
+});
+
+
+// GET /create-application: Render the application creation form
+app.get('/create-application', authenticateAndAuthorize(['user', 'admin', 'owner']), (req, res) => {
+    res.render('applications');
+});
+
+// POST /create-application: Handle application creation form submission
+app.post('/create-application', authenticateAndAuthorize(['user', 'admin', 'owner']), async (req, res) => {
+    const { applicationName } = req.body;
+    const userId = req.user.user_id;
+
+    if (!applicationName) {
+        return res.status(400).json({ error: 'Application name is required' });
+    }
+
+    try {
+        const userUpdateQuery = `
+            UPDATE users
+            SET application = $1
+            WHERE user_id = $2
+            RETURNING *;
+        `;
+        const userUpdateValues = [applicationName, userId];
+        const userResult = await pool.query(userUpdateQuery, userUpdateValues);
+        const updatedUser = userResult.rows[0];
+
+        if (!updatedUser) {
+            return res.status(404).json({ error: 'User not found' });
+        }
+
+        res.status(201).json({
+            message: 'Application created and assigned to user',
+            user: updatedUser,
+        });
+    } catch (error) {
+        console.error('Error creating application:', error);
+        res.status(500).json({ error: 'Internal Server Error' });
     }
 });
 

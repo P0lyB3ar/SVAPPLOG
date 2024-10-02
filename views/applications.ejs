@@ -1,0 +1,11 @@
+<%- include('layout', { title: 'Create Application', body: '' }) %>
+
+<form action="/create-application" method="POST">
+    <div>
+        <label for="applicationName">Application Name:</label>
+        <input type="text" id="applicationName" name="applicationName" required>
+    </div>
+    <div>
+        <button type="submit">Create Application</button>
+    </div>
+</form>
