@@ -11,6 +11,7 @@ import FolderIcon from "@mui/icons-material/Folder";
 import DeleteIcon from "@mui/icons-material/Delete";
 import { Button, TextField } from "@mui/material";
 import Tooltip from "@mui/material/Tooltip";
+import { Link } from "react-router-dom";
 
 interface DictionaryItem {
   name: string;
@@ -164,9 +165,15 @@ const MainDictionary: React.FC = () => {
 
         {/* Conditionally render the Edit Dictionary button */}
         {selectedDictionary && (
-          <Button href="./editdictionary" variant="contained" size="large" style={{ marginTop: "20px", fontSize: "20px" }} onClick={handleEditClick}>
+          <Button
+            component={Link} // Using Link to navigate
+            to={`/dictionary/edit/${selectedDictionary}`} // Pass the selected dictionary's name as a route parameter
+            variant="contained"
+            size="large"
+            style={{ marginTop: "20px", fontSize: "20px" }}
+          >
             Edit Dictionary
-          </Button>
+        </Button>
         )}
       </Container>
 

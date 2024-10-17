@@ -112,6 +112,25 @@ const DictionaryEdit: React.FC<DictionaryProps> = ({
 
   // Click outside handler
   useEffect(() => {
+    const fetchDictionaryData = async () => {
+      try {
+        const response = await fetch(`http://localhost:8000/dictionary/${name}`);
+        const data = await response.json();
+
+        if (response.ok) {
+          setDictionaryName(data.dictionary.name);
+          setActionItems(data.dictionary.actions);
+        } else {
+          alert("Failed to load dictionary data.");
+        }
+      } catch (error) {
+        console.error("Error fetching dictionary:", error);
+      }
+    };
+
+      fetchDictionaryData();
+
+
     const handleClickOutside = (event: MouseEvent) => {
       if (editRef.current && !editRef.current.contains(event.target as Node)) {
         if (isEditing && editingIndex !== null) {
@@ -122,7 +141,7 @@ const DictionaryEdit: React.FC<DictionaryProps> = ({
 
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, [isEditing, editingIndex]);
+  }, [isEditing, editingIndex, name]);
 
   return (
     <CenteredWrapper>
