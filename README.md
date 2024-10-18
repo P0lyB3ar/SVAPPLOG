@@ -23,7 +23,7 @@ Installation
 
     Clone the repository:
 ```
-git clone https://github.com/yourusername/SvAppLog.git
+git clone https://github.com/P0lyB3ar/SvAppLog.git
 cd SvAppLog
 ```
 Install the required dependencies:
