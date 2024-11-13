@@ -21,9 +21,11 @@ const port = 8000;
 app.set('view engine', 'ejs');
 
 app.use(cors({
-    origin: 'http://localhost:3000', // Frontend URL
-    credentials: true // Allow cookies to be sent
-  }));
+    origin: '*',
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization']
+}));
 
 const opts = {
     jwtFromRequest: (req) => req.cookies.jwt, // Extract token from cookies
