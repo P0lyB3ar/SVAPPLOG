@@ -24,17 +24,41 @@ function Copyright(props: any) {
   );
 }
 
-// TODO remove, this demo shouldn't need to reset the theme.
+// Create default theme
 const defaultTheme = createTheme();
 
 export default function Register() {
-  const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const data = new FormData(event.currentTarget);
-    console.log({
-      email: data.get('email'),
+    const registrationData = {
+      firstName: data.get('firstName'),
+      lastName: data.get('lastName'),
+      username: data.get('username'),
       password: data.get('password'),
-    });
+    };
+
+    try {
+      const response = await fetch('http://localhost:8000', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(registrationData),
+      });
+
+      const result = await response.json();
+      if (response.ok) {
+        // Redirect to login with a success message in the URL
+        window.location.href = './login?message=Registration successful! You can now log in.';
+      } else {
+        // Handle registration error
+        alert(result.message || 'Registration failed. Please try again.');
+      }
+    } catch (error) {
+      console.error('Error during registration:', error);
+      alert('Server error. Please try again later.');
+    }
   };
 
   return (
@@ -82,10 +106,10 @@ export default function Register() {
                 <TextField
                   required
                   fullWidth
-                  id="email"
-                  label="Email Address"
-                  name="email"
-                  autoComplete="email"
+                  id="username"
+                  label="Enter your username"
+                  name="username"
+                  autoComplete="username"
                 />
               </Grid>
               <Grid item xs={12}>
@@ -96,7 +120,7 @@ export default function Register() {
                   label="Password"
                   type="password"
                   id="password"
-                  autoComplete="new-password"
+                  autoComplete="password"
                 />
               </Grid>
             </Grid>
