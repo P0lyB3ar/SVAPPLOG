@@ -7,6 +7,7 @@ import { Box, styled, IconButton } from "@mui/material";
 import EditIcon from '@mui/icons-material/Edit';
 import CheckIcon from '@mui/icons-material/Check';
 import DeleteIcon from '@mui/icons-material/Delete';
+import { useLocation, useNavigate } from "react-router-dom";
 
 // Define DictionaryProps type
 type DictionaryProps = {
@@ -42,14 +43,26 @@ const Container = styled("div")({
   overflow: "auto", // Make the container scrollable if content overflows
 });
 
-const DictionaryEdit: React.FC<DictionaryProps> = ({
-  dictionaryName,
-  actions,
-}) => {
-  const [actionItems, setActionItems] = useState(actions);
+const DictionaryEdit: React.FC = () => {
+  const [actionItems, setActionItems] = useState<string[]>([]);
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const editRef = useRef<HTMLDivElement | null>(null);
+  const [dictionaryName, setDictionaryName] = useState<string>("");
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  // Extract dictionary name and actions from location state or URL
+  useEffect(() => {
+    const state = location.state as { name: string, actions: string[] };
+    if (state) {
+      setDictionaryName(state.name);
+      setActionItems(state.actions);
+    } else {
+      // Handle scenario when state is undefined (should ideally redirect or handle error)
+      navigate("/dictionary");
+    }
+  }, [location, navigate]);
 
   // Enable editing function
   const enableEditing = (index: number) => {
@@ -112,25 +125,6 @@ const DictionaryEdit: React.FC<DictionaryProps> = ({
 
   // Click outside handler
   useEffect(() => {
-    const fetchDictionaryData = async () => {
-      try {
-        const response = await fetch(`http://localhost:8000/dictionary/${name}`);
-        const data = await response.json();
-
-        if (response.ok) {
-          setDictionaryName(data.dictionary.name);
-          setActionItems(data.dictionary.actions);
-        } else {
-          alert("Failed to load dictionary data.");
-        }
-      } catch (error) {
-        console.error("Error fetching dictionary:", error);
-      }
-    };
-
-      fetchDictionaryData();
-
-
     const handleClickOutside = (event: MouseEvent) => {
       if (editRef.current && !editRef.current.contains(event.target as Node)) {
         if (isEditing && editingIndex !== null) {
@@ -141,13 +135,13 @@ const DictionaryEdit: React.FC<DictionaryProps> = ({
 
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, [isEditing, editingIndex, name]);
+  }, [isEditing, editingIndex]);
 
   return (
     <CenteredWrapper>
       <Container>
         <Button
-          href="./dictionary"
+          href="/dictionary"
           variant="contained"
           size="large"
           style={{ marginTop: "2px", marginLeft: "-630px", fontSize: "20px" }}

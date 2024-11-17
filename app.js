@@ -20,12 +20,7 @@ const app = express();
 const port = 8000;
 app.set('view engine', 'ejs');
 
-app.use(cors({
-    origin: '*',
-    credentials: true,
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization']
-}));
+app.use(cors());
 
 const opts = {
     jwtFromRequest: (req) => req.cookies.jwt, // Extract token from cookies
@@ -541,7 +536,7 @@ app.get('/read',  authenticateAndAuthorize(['user','admin','owner']), async (req
 });
 
 // Create dictionary endpoint (requires 'admin' role)
-app.post('/create-dictionary', authenticateAndAuthorize(['admin','owner']), async (req, res) => {
+app.post('/create-dictionary', authenticateAndAuthorize(['admin','owner', 'user']), async (req, res) => {
     const { name, actions } = req.body;
 
     if (!name || !actions || actions.length === 0) {
@@ -612,7 +607,7 @@ app.get('/dictionary/:name', async (req, res) => {
 });
 
 // Update dictionary (requires 'admin' role)
-app.post('/update-dictionary', authenticateAndAuthorize(['admin','owner']), async (req, res) => {
+app.post('/update-dictionary', authenticateAndAuthorize(['admin','owner','user']), async (req, res) => {
     const { name, newActions } = req.body;
 
     if (!name || !newActions || newActions.length === 0) {
@@ -637,7 +632,7 @@ app.post('/update-dictionary', authenticateAndAuthorize(['admin','owner']), asyn
 });
 
 // Render dictionary creation form (requires 'admin' role)
-app.get('/create-dictionary', authenticateAndAuthorize(['admin','owner']), (req, res) => {
+app.get('/create-dictionary', authenticateAndAuthorize(['admin','owner', 'user']), (req, res) => {
     res.render('createdict');
 });
 

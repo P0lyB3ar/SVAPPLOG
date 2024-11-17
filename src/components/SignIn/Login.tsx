@@ -11,7 +11,9 @@ import Box from '@mui/material/Box';
 import LockPersonIcon from '@mui/icons-material/LockPerson';
 import Typography from '@mui/material/Typography';
 import Container from '@mui/material/Container';
+import CircularProgress from '@mui/material/CircularProgress'; // Import spinner
 import { createTheme, ThemeProvider } from '@mui/material/styles';
+import { useEffect, useState } from 'react';
 
 function Copyright(props: any) {
   return (
@@ -26,15 +28,29 @@ function Copyright(props: any) {
   );
 }
 
-// Create default theme
+// TODO remove, this demo shouldn't need to reset the theme.
 const defaultTheme = createTheme();
 
 export default function Login() {
+  const [message, setMessage] = useState('');
+  const [loading, setLoading] = useState(false); // State to control the loading spinner
+
+  useEffect(() => {
+    // Retrieve the message from the URL parameters
+    const params = new URLSearchParams(window.location.search);
+    const msg = params.get('message');
+    if (msg) {
+      setMessage(msg);
+    }
+  }, []);
+
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    setLoading(true); // Start the loading spinner
+
     const data = new FormData(event.currentTarget);
     const loginData = {
-      username: data.get('email'),  // Ensure this matches 'username' in your backend
+      username: data.get('username'),
       password: data.get('password'),
     };
 
@@ -44,31 +60,27 @@ export default function Login() {
         headers: {
           'Content-Type': 'application/json',
         },
-        credentials: 'include',  // Include credentials to handle cookies (like JWT)
         body: JSON.stringify(loginData),
       });
 
       const result = await response.json();
-      if (response.ok) {
-        // Handle successful login (store token, redirect, etc.)
-        console.log('Login successful:', result);
-
+      if (response.ok && result.token) {
         // Store the JWT token in session storage
-        sessionStorage.setItem('jwtToken', result.token); // Assuming your backend returns a token
+        sessionStorage.setItem('jwtToken', result.token);
 
-        // Set the token as a cookie
-        document.cookie = `jwt=${result.token}; path=/;`; // Set cookie with path
+        // Optionally, set the token as a cookie
+        document.cookie = `jwt=${result.token}; path=/;`;
 
         // Redirect to /main after successful login
-        window.location.href = '/main';  // Change this line for redirection
+        window.location.href = '/main';
       } else {
-        // Handle error (show error message, etc.)
-        console.error('Login failed:', result);
         alert('Incorrect Username or Password!');
       }
     } catch (error) {
       console.error('Error during login:', error);
       alert('Server error. Please try again later.');
+    } finally {
+      setLoading(false); // Stop the loading spinner
     }
   };
 
@@ -95,10 +107,10 @@ export default function Login() {
               margin="normal"
               required
               fullWidth
-              id="email"
-              label="Username"
-              name="email"
-              autoComplete="email"
+              id="username"
+              label="Enter your username"
+              name="username"
+              autoComplete="username"
               autoFocus
             />
             <TextField
@@ -120,8 +132,9 @@ export default function Login() {
               fullWidth
               variant="contained"
               sx={{ mt: 3, mb: 2 }}
+              disabled={loading} // Disable button while loading
             >
-              Sign In
+              {loading ? <CircularProgress size={24} color="inherit" /> : 'Sign In'}
             </Button>
             <Grid container>
               <Grid item xs>

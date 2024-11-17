@@ -1,5 +1,5 @@
 import Header from './components/Header/Header';
-import MainDictionary from './components/Main/MainDictionary';
+import MainDictionary from './components/Main/Dictionary';
 import './App.css';
 
 // Sample dictionaries data

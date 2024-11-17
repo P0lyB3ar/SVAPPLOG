@@ -17,7 +17,7 @@ const StyledMenu = styled.nav<StyledMenuProps>`
   display: flex;
   flex-direction: column;
   justify-content: center;
-  background: #c6ecf5;
+  background: #003C43;
   transform: ${({ open }) => (open ? "translateX(0)" : "translateX(-100%)")};
   height: calc(100vh - 60px); /* Adjust height to account for header height */
   width: 13rem;
@@ -37,7 +37,7 @@ const StyledMenu = styled.nav<StyledMenuProps>`
   a {
     font-size: 1.5rem;
     text-transform: uppercase;
-    padding: 2rem 0;
+    padding: 1.5rem 0;
     font-weight: bold;
     letter-spacing: 0.5rem;
     color: #0d0c1d;

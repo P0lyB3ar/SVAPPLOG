@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import * as React from 'react';
 import Avatar from '@mui/material/Avatar';
 import Button from '@mui/material/Button';
 import CssBaseline from '@mui/material/CssBaseline';
@@ -9,7 +9,6 @@ import Box from '@mui/material/Box';
 import LockPersonIcon from '@mui/icons-material/LockPerson';
 import Typography from '@mui/material/Typography';
 import Container from '@mui/material/Container';
-import CircularProgress from '@mui/material/CircularProgress';
 import { createTheme, ThemeProvider } from '@mui/material/styles';
 
 function Copyright(props: any) {
@@ -25,15 +24,12 @@ function Copyright(props: any) {
   );
 }
 
+// Create default theme
 const defaultTheme = createTheme();
 
 export default function Register() {
-  const [loading, setLoading] = useState(false);
-
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    setLoading(true);
-  
     const data = new FormData(event.currentTarget);
     const registrationData = {
       firstName: data.get('firstName'),
@@ -41,7 +37,7 @@ export default function Register() {
       username: data.get('username'),
       password: data.get('password'),
     };
-  
+
     try {
       const response = await fetch('http://localhost:8000/register', {
         method: 'POST',
@@ -50,33 +46,20 @@ export default function Register() {
         },
         body: JSON.stringify(registrationData),
       });
-  
+
+      const result = await response.json();
       if (response.ok) {
-        // Attempt to parse JSON if available; otherwise, proceed
-        try {
-          const result = await response.json();
-          if (result.success) {
-            window.location.href = './login?message=Registration successful! You can now log in.';
-          } else {
-            alert(result.message || 'Registration failed. Please try again.');
-          }
-        } catch {
-          // Redirect even if JSON parsing fails, as long as the response was successful
-          window.location.href = './login?message=Registration successful! You can now log in.';
-        }
+        // Redirect to login with a success message in the URL
+        window.location.href = './login?message=Registration successful! You can now log in.';
       } else {
-        alert('Registration failed. Please try again.');
+        // Handle registration error
+        alert(result.message || 'Registration failed. Please try again.');
       }
     } catch (error) {
       console.error('Error during registration:', error);
       alert('Server error. Please try again later.');
-    } finally {
-      setLoading(false); // Stop the loading spinner
     }
   };
-  
-  
-
 
   return (
     <ThemeProvider theme={defaultTheme}>
@@ -137,7 +120,7 @@ export default function Register() {
                   label="Password"
                   type="password"
                   id="password"
-                  autoComplete="new-password"
+                  autoComplete="password"
                 />
               </Grid>
             </Grid>
@@ -146,14 +129,12 @@ export default function Register() {
               fullWidth
               variant="contained"
               sx={{ mt: 3, mb: 2 }}
-              disabled={loading}
-              startIcon={loading ? <CircularProgress size={24} /> : null}
             >
-              {loading ? 'Signing Up...' : 'Sign Up'}
+              Sign Up
             </Button>
             <Grid container justifyContent="flex-end">
               <Grid item>
-                <Link href="./login" variant="body2">
+                <Link href='./login' variant="body2">
                   Already have an account? Sign in
                 </Link>
               </Grid>
