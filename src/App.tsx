@@ -18,7 +18,7 @@ const App = () => {
         <Route path="/dictionary" element={<AppDict/>}/>
         <Route path="/dictionary/edit/:name" element={<EditDict />} /> {/* Edit page */}
       </Routes>
-    </BrowserRouter> {/* Ensure BrowserRouter is wrapping your routes */}
+    </BrowserRouter>
   );
 };
 
