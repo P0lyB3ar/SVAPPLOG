@@ -5,7 +5,7 @@ import Button from '@mui/material/Button';
 import Result from "./Result";
 
 const StyledMain = styled.div`
-  background: #ffffff;
+  background: #010409;
   height: 100vh;
   overflow: hidden;
   display: flex;
@@ -16,7 +16,7 @@ const StyledMain = styled.div`
 const Container = styled.div`
   margin-top: 160px;
   margin-bottom: 95px;
-  background: rgb(212, 244, 255);
+  background: #151b23;
   padding: 20px;
   max-width: 1850px;
   box-sizing: border-box;

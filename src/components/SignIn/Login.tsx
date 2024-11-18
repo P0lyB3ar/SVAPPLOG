@@ -1,29 +1,34 @@
-import * as React from 'react';
-import Avatar from '@mui/material/Avatar';
-import Button from '@mui/material/Button';
-import CssBaseline from '@mui/material/CssBaseline';
-import TextField from '@mui/material/TextField';
-import FormControlLabel from '@mui/material/FormControlLabel';
-import Checkbox from '@mui/material/Checkbox';
-import Link from '@mui/material/Link';
-import Grid from '@mui/material/Grid';
-import Box from '@mui/material/Box';
-import LockPersonIcon from '@mui/icons-material/LockPerson';
-import Typography from '@mui/material/Typography';
-import Container from '@mui/material/Container';
-import CircularProgress from '@mui/material/CircularProgress'; // Import spinner
-import { createTheme, ThemeProvider } from '@mui/material/styles';
-import { useEffect, useState } from 'react';
+import * as React from "react";
+import Avatar from "@mui/material/Avatar";
+import Button from "@mui/material/Button";
+import CssBaseline from "@mui/material/CssBaseline";
+import TextField from "@mui/material/TextField";
+import FormControlLabel from "@mui/material/FormControlLabel";
+import Checkbox from "@mui/material/Checkbox";
+import Link from "@mui/material/Link";
+import Grid from "@mui/material/Grid";
+import Box from "@mui/material/Box";
+import LockPersonIcon from "@mui/icons-material/LockPerson";
+import Typography from "@mui/material/Typography";
+import Container from "@mui/material/Container";
+import CircularProgress from "@mui/material/CircularProgress"; // Import spinner
+import { createTheme, ThemeProvider } from "@mui/material/styles";
+import { useEffect, useState } from "react";
 
 function Copyright(props: any) {
   return (
-    <Typography variant="body2" color="text.secondary" align="center" {...props}>
-      {'Copyright © '}
+    <Typography
+      variant="body2"
+      color="text.secondary"
+      align="center"
+      {...props}
+    >
+      {"Copyright © "}
       <Link color="inherit" href="https://pmg-dobrich.com/">
         SVAppLog
-      </Link>{' '}
+      </Link>{" "}
       {new Date().getFullYear()}
-      {'.'}
+      {"."}
     </Typography>
   );
 }
@@ -32,13 +37,13 @@ function Copyright(props: any) {
 const defaultTheme = createTheme();
 
 export default function Login() {
-  const [message, setMessage] = useState('');
+  const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false); // State to control the loading spinner
 
   useEffect(() => {
     // Retrieve the message from the URL parameters
     const params = new URLSearchParams(window.location.search);
-    const msg = params.get('message');
+    const msg = params.get("message");
     if (msg) {
       setMessage(msg);
     }
@@ -50,15 +55,15 @@ export default function Login() {
 
     const data = new FormData(event.currentTarget);
     const loginData = {
-      username: data.get('username'),
-      password: data.get('password'),
+      username: data.get("username"),
+      password: data.get("password"),
     };
 
     try {
-      const response = await fetch('http://localhost:8000/login', {
-        method: 'POST',
+      const response = await fetch("http://localhost:8000/login", {
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
         body: JSON.stringify(loginData),
       });
@@ -66,19 +71,19 @@ export default function Login() {
       const result = await response.json();
       if (response.ok && result.token) {
         // Store the JWT token in session storage
-        sessionStorage.setItem('jwtToken', result.token);
+        sessionStorage.setItem("jwtToken", result.token);
 
         // Optionally, set the token as a cookie
         document.cookie = `jwt=${result.token}; path=/;`;
 
         // Redirect to /main after successful login
-        window.location.href = '/main';
+        window.location.href = "/main";
       } else {
-        alert('Incorrect Username or Password!');
+        alert("Incorrect Username or Password!");
       }
     } catch (error) {
-      console.error('Error during login:', error);
-      alert('Server error. Please try again later.');
+      console.error("Error during login:", error);
+      alert("Server error. Please try again later.");
     } finally {
       setLoading(false); // Stop the loading spinner
     }
@@ -91,21 +96,27 @@ export default function Login() {
         <Box
           sx={{
             marginTop: 8,
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
           }}
         >
-          <Avatar sx={{ m: 2, bgcolor: 'secondary.main', marginTop: '100px' }}>
+          <Avatar sx={{ m: 2, bgcolor: "secondary.main", marginTop: "100px" }}>
             <LockPersonIcon />
           </Avatar>
           <Typography component="h1" variant="h5">
             Sign in
           </Typography>
-          <Box component="form" onSubmit={handleSubmit} noValidate sx={{ mt: 1 }}>
+          <Box
+            component="form"
+            onSubmit={handleSubmit}
+            noValidate
+            sx={{ mt: 1 }}
+          >
             <TextField
               margin="normal"
               required
+              InputLabelProps={{ required: false }}
               fullWidth
               id="username"
               label="Enter your username"
@@ -116,6 +127,7 @@ export default function Login() {
             <TextField
               margin="normal"
               required
+              InputLabelProps={{ required: false }}
               fullWidth
               name="password"
               label="Password"
@@ -134,7 +146,11 @@ export default function Login() {
               sx={{ mt: 3, mb: 2 }}
               disabled={loading} // Disable button while loading
             >
-              {loading ? <CircularProgress size={24} color="inherit" /> : 'Sign In'}
+              {loading ? (
+                <CircularProgress size={24} color="inherit" />
+              ) : (
+                "Sign In"
+              )}
             </Button>
             <Grid container>
               <Grid item xs>

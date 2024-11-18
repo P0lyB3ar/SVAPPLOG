@@ -1,141 +1,72 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import List from "@mui/material/List";
 import ListItem from "@mui/material/ListItem";
 import Button from "@mui/material/Button";
-import Typography from '@mui/material/Typography';
-import { Box, styled, IconButton } from "@mui/material";
-import EditIcon from '@mui/icons-material/Edit';
-import CheckIcon from '@mui/icons-material/Check';
-import DeleteIcon from '@mui/icons-material/Delete';
-import { useLocation, useNavigate } from "react-router-dom";
+import Typography from "@mui/material/Typography";
+import { Box, styled } from "@mui/material";
+import { useParams } from "react-router-dom";
 
-// Define DictionaryProps type
-type DictionaryProps = {
-  dictionaryName: string;
-  actions: string[];
-};
-
-// Wrapper to center the Container
+// Styled components
 const CenteredWrapper = styled("div")({
   display: "flex",
   justifyContent: "center",
   alignItems: "center",
-  minHeight: "100vh", // Ensure the wrapper takes full viewport height
-  padding: "20px", // Optional padding around the container
+  minHeight: "100vh",
+  padding: "20px",
   boxSizing: "border-box",
-  backgroundColor: "#fff", // Optional background color to make the container stand out
+  backgroundColor: "#010409",
 });
 
-// Styled container
 const Container = styled("div")({
-  backgroundColor: "rgb(212, 244, 255)", // Original background color for each container
+  backgroundColor: "#151b23",
   padding: "20px",
-  borderRadius: "8px", // Optional for rounded corners
-  boxShadow: "0px 4px 12px rgba(0, 0, 0, 0.1)", // Optional for a subtle shadow effect
-  width: "800px", // Fixed width for both containers
-  boxSizing: "border-box",
+  borderRadius: "8px",
+  boxShadow: "0px 4px 12px rgba(0, 0, 0, 0.1)",
+  width: "800px",
   display: "flex",
   flexDirection: "column",
-  alignItems: "center", // Center items horizontally
-  justifyContent: "center", // Center items vertically
-  textAlign: "center", // Ensure text is centered inside components
-  maxHeight: "810px", // Maximum height of the container
-  overflow: "auto", // Make the container scrollable if content overflows
+  alignItems: "center",
+  textAlign: "center",
+  maxHeight: "810px",
+  overflow: "auto",
 });
 
 const DictionaryEdit: React.FC = () => {
-  const [actionItems, setActionItems] = useState<string[]>([]);
-  const [editingIndex, setEditingIndex] = useState<number | null>(null);
-  const [isEditing, setIsEditing] = useState(false);
-  const editRef = useRef<HTMLDivElement | null>(null);
-  const [dictionaryName, setDictionaryName] = useState<string>("");
-  const navigate = useNavigate();
-  const location = useLocation();
+  const [dictionaryData, setDictionaryData] = useState<{ [key: string]: string[] }>({});
+  const [loading, setLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string | null>(null);
+  const { name } = useParams(); // Get the dictionary name from the URL
 
-  // Extract dictionary name and actions from location state or URL
   useEffect(() => {
-    const state = location.state as { name: string, actions: string[] };
-    if (state) {
-      setDictionaryName(state.name);
-      setActionItems(state.actions);
-    } else {
-      // Handle scenario when state is undefined (should ideally redirect or handle error)
-      navigate("/dictionary");
-    }
-  }, [location, navigate]);
-
-  // Enable editing function
-  const enableEditing = (index: number) => {
-    setEditingIndex(index);
-    setIsEditing(true);
-  };
-
-  // Save changes function
-  const saveChanges = async (index: number) => {
-    if (editRef.current) {
-      const updatedAction = editRef.current.textContent || "";
-
-      const newItems = [...actionItems];
-      newItems[index] = updatedAction;
-      setActionItems(newItems);
-      setEditingIndex(null);
-      setIsEditing(false);
-
+    const fetchDictionary = async () => {
       try {
-        const response = await fetch("/update-dictionary", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            name: dictionaryName,
-            newActions: newItems,
-          }),
-        });
-
+        const response = await fetch(`http://localhost:8000/dictionary/${name}`);
         if (!response.ok) {
-          alert("Failed to update the dictionary");
+          const errorData = await response.json();
+          setError(errorData.error || "Failed to fetch dictionary");
+          return;
         }
-      } catch (error) {
-        console.error("Error updating dictionary:", error);
-        alert("An error occurred while updating the dictionary");
-      }
-    }
-  };
 
-  // Handle delete function
-  const handleDelete = (index: number) => {
-    const newItems = actionItems.filter((_, i) => i !== index);
-    setActionItems(newItems);
+        const data = await response.json();
+        console.log(data); // Debug log
 
-    fetch("/update-dictionary", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        name: dictionaryName,
-        newActions: newItems,
-      }),
-    }).catch(error => {
-      console.error("Error updating dictionary:", error);
-      alert("An error occurred while updating the dictionary");
-    });
-  };
-
-  // Click outside handler
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (editRef.current && !editRef.current.contains(event.target as Node)) {
-        if (isEditing && editingIndex !== null) {
-          saveChanges(editingIndex);
+        if (data && data.dictionary) {
+          setDictionaryData(data.dictionary);
+        } else {
+          setError("Malformed dictionary data");
         }
+      } catch (err) {
+        console.error("Error fetching dictionary:", err);
+        setError("An error occurred while fetching the dictionary");
+      } finally {
+        setLoading(false);
       }
     };
 
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, [isEditing, editingIndex]);
+    if (name) {
+      fetchDictionary();
+    }
+  }, [name]);
 
   return (
     <CenteredWrapper>
@@ -144,82 +75,53 @@ const DictionaryEdit: React.FC = () => {
           href="/dictionary"
           variant="contained"
           size="large"
-          style={{ marginTop: "2px", marginLeft: "-630px", fontSize: "20px" }}
+          sx={{ alignSelf: "flex-start", marginBottom: "20px" }}
         >
-          Return
+          Back to all dictionaries
         </Button>
 
-        <Typography
-          sx={{ mt: 2, mb: 2, fontSize: "3rem" }}
-          variant="h4"
-          component="div"
-        >
-          Dictionary: {dictionaryName}
+        <Typography sx={{ fontSize: "3rem", color: "white", marginBottom: "20px" }}>
+          Dictionary: {name}
         </Typography>
 
-        <Box
-          sx={{
-            width: "100%",
-            maxWidth: 500,
-            bgcolor: "background.paper",
-            overflow: "auto",
-            maxHeight: 300,
-            padding: "10px",
-            backgroundColor: "rgb(212, 244, 255)"
-          }}
-        >
-          <List>
-            {actionItems.map((action, index) => (
-              <ListItem
-                key={index}
-                sx={{ cursor: "pointer", display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}
-                style={{ backgroundColor: "rgb(212, 244, 255)" }}
-              >
-                <Box
-                  ref={editingIndex === index ? editRef : null} // Set ref only when editing
-                  contentEditable={editingIndex === index} // Enable editing
-                  suppressContentEditableWarning={true}
-                  sx={{ flexGrow: 1, padding: 1 }}
+        {loading ? (
+          <Typography sx={{ color: "white" }}>Loading...</Typography>
+        ) : error ? (
+          <Typography color="error">{error}</Typography>
+        ) : (
+          <Box
+            sx={{
+              width: "100%",
+              bgcolor: "background.paper",
+              padding: "10px",
+              overflow: "auto",
+              backgroundColor: "rgb(212, 244, 255)",
+              borderRadius: "8px",
+            }}
+          >
+            {Object.keys(dictionaryData).map((key) => (
+              <Box key={key} sx={{ marginBottom: "20px" }}>
+                <Typography
+                  variant="h6"
+                  sx={{
+                    textDecoration: "underline",
+                    color: "black",
+                    marginBottom: "10px",
+                  }}
                 >
-                  <Typography
-                    variant="body1"
-                    sx={{
-                      wordWrap: 'break-word',
-                      display: 'inline-block',
-                      width: '100%',
-                      fontSize: "30px",
-                    }}
-                  >
-                    {action}
-                  </Typography>
-                </Box>
-                <Box>
-                  {editingIndex === index ? (
-                    <IconButton
-                      onClick={() => saveChanges(index)}
-                      sx={{ fontSize: 50 }} // Adjust icon size here
-                    >
-                      <CheckIcon />
-                    </IconButton>
-                  ) : (
-                    <IconButton
-                      onClick={() => enableEditing(index)}
-                      sx={{ fontSize: 50 }} // Adjust icon size here
-                    >
-                      <EditIcon />
-                    </IconButton>
-                  )}
-                  <IconButton
-                    onClick={() => handleDelete(index)}
-                    sx={{ fontSize: 50 }} // Adjust icon size here
-                  >
-                    <DeleteIcon />
-                  </IconButton>
-                </Box>
-              </ListItem>
+                  {key}
+                </Typography>
+                <List>
+                  {dictionaryData[key].map((item, index) => (
+                    <ListItem key={index} sx={{ color: "black" }}>
+                      {item}
+                    </ListItem>
+                  ))}
+                </List>
+              </Box>
             ))}
-          </List>
-        </Box>
+          </Box>
+        )}
       </Container>
     </CenteredWrapper>
   );
