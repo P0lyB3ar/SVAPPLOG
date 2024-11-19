@@ -20,12 +20,7 @@ const app = express();
 const port = 8000;
 app.set('view engine', 'ejs');
 
-app.use(cors({
-    origin: '*',
-    credentials: true,
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization']
-}));
+app.use(cors());
 
 const opts = {
     jwtFromRequest: (req) => req.cookies.jwt, // Extract token from cookies
@@ -541,7 +536,7 @@ app.get('/read',  authenticateAndAuthorize(['user','admin','owner']), async (req
 });
 
 // Create dictionary endpoint (requires 'admin' role)
-app.post('/create-dictionary', authenticateAndAuthorize(['admin','owner']), async (req, res) => {
+app.post('/create-dictionary', authenticateAndAuthorize(['admin','owner', 'user']), async (req, res) => {
     const { name, actions } = req.body;
 
     if (!name || !actions || actions.length === 0) {
@@ -595,7 +590,7 @@ app.get('/dictionary/:name', async (req, res) => {
     try {
         const result = await pool.query('SELECT * FROM dictionaries WHERE name = $1', [name]);
         if (result.rows.length === 0) {
-            return res.status(404).render('error', { error: 'Dictionary not found' });
+            return res.status(404).json({ error: 'Dictionary not found' });
         }
 
         let dictionary = result.rows[0].data;
@@ -604,15 +599,15 @@ app.get('/dictionary/:name', async (req, res) => {
             dictionary = JSON.parse(dictionary);
         }
 
-        res.status(200).render('dictionary', { dictionary });
+        res.status(200).json({ dictionary });
     } catch (error) {
         console.error('Error fetching dictionary:', error);
-        res.status(500).render('error', { error: 'Internal server error' });
+        res.status(500).json({ error: 'Internal server error' });
     }
 });
 
 // Update dictionary (requires 'admin' role)
-app.post('/update-dictionary', authenticateAndAuthorize(['admin','owner']), async (req, res) => {
+app.post('/update-dictionary', authenticateAndAuthorize(['admin','owner','user']), async (req, res) => {
     const { name, newActions } = req.body;
 
     if (!name || !newActions || newActions.length === 0) {
@@ -637,7 +632,7 @@ app.post('/update-dictionary', authenticateAndAuthorize(['admin','owner']), asyn
 });
 
 // Render dictionary creation form (requires 'admin' role)
-app.get('/create-dictionary', authenticateAndAuthorize(['admin','owner']), (req, res) => {
+app.get('/create-dictionary', authenticateAndAuthorize(['admin','owner', 'user']), (req, res) => {
     res.render('createdict');
 });
 

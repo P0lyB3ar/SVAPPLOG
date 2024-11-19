@@ -1,10 +1,10 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
-import ForgottenPassword from './components/SignIn/ForgottenPassword';
-
+import './index.css';
+import UserD from './UserD';
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <ForgottenPassword />
+    <UserD/>
   </StrictMode>,
 )
