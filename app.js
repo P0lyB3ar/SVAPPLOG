@@ -20,7 +20,19 @@ const app = express();
 const port = 8000;
 app.set('view engine', 'ejs');
 
-app.use(cors());
+app.use((req, res, next) => {
+    res.setHeader("Access-Control-Allow-Origin", "http://localhost:5173"); // Frontend URL
+    res.setHeader("Access-Control-Allow-Credentials", "true");
+    res.setHeader("Access-Control-Allow-Methods", "GET,POST,PUT,DELETE,OPTIONS");
+    res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
+    
+    if (req.method === "OPTIONS") {
+      // Preflight request handling
+      return res.sendStatus(200);
+    }
+  
+    next();
+  });
 
 const opts = {
     jwtFromRequest: (req) => req.cookies.jwt, // Extract token from cookies
@@ -336,7 +348,6 @@ app.get('/create-application', authenticateAndAuthorize(['user', 'admin', 'owner
 app.post('/create-application', authenticateAndAuthorize(['user', 'admin', 'owner']), async (req, res) => {
     const { applicationName, organisationName } = req.body;
     const userId = req.user.user_id;
-
     // Validate that both application name and organisation name are provided
     if (!applicationName || !organisationName) {
         return res.status(400).json({ error: 'Application name and organisation name are required' });
@@ -416,85 +427,77 @@ app.get('/list-applications', authenticateAndAuthorize(['user', 'admin', 'owner'
     }
 });
 
-
-// Write endpoint (only accessible by users with 'admin' role)
 app.post('/write', async (req, res) => {
-    const { applicationSecret, organisationName, applicationName } = req.headers;
-    const jsonData = req.body;
-    const dictName = req.query.name;
-    const path = req.path;
+    const { name } = req.query; // Extract dictionary name from query parameters
+    const inputData = req.body; // Extract log data from request body
 
-    if (!applicationSecret || !organisationName || !applicationName) {
-        return res.status(400).json({ error: 'Application secret, organisation, and application names are required' });
+    if (!name) {
+        return res.status(400).json({ error: 'Dictionary name is required' });
     }
 
     try {
-        // Verify the application secret and ensure it matches the organisation and application
-        const appQuery = `
-            SELECT * FROM applications
-            WHERE name = $1 AND secret = $2 AND organisation = $3
-        `;
-        const appResult = await pool.query(appQuery, [applicationName, applicationSecret, organisationName]);
-
-        if (appResult.rowCount === 0) {
-            return res.status(403).json({ error: 'Invalid application secret or organisation/application mismatch' });
-        }
-
-        // Proceed with the regular logic
-        if (!dictName) {
-            return res.status(400).json({ error: 'Dictionary name is required' });
-        }
-
-        const dictResult = await pool.query('SELECT data FROM dictionaries WHERE name = $1', [dictName]);
+        // Fetch dictionary details from the database
+        const dictResult = await pool.query('SELECT * FROM dictionaries WHERE name = $1', [name]);
 
         if (dictResult.rowCount === 0) {
-            return res.status(404).json({ error: `Dictionary with name '${dictName}' not found` });
+            return res.status(404).json({ error: `Dictionary with name '${name}' not found` });
         }
 
-        const predefinedTypes = Object.keys(dictResult.rows[0].data);
-        const entries = Object.entries(jsonData);
-        const results = [];
+        // Extract dictionary data fields
+        const dictData = dictResult.rows[0].data;
+        const dictFields = dictData[name]; // e.g., ["user", "path", "method", "ip", "timestamp"]
 
-        for (const [type, data] of entries) {
-            if (predefinedTypes.includes(type)) {
-                try {
-                    const result = await pool.query(
-                        'INSERT INTO logs (dict_name, type, data, path, application_name, organisation_name) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *',
-                        [dictName, type, data, path, applicationName, organisationName]
-                    );
-                    results.push(result.rows[0]);
-                } catch (error) {
-                    console.error('Error writing to database:', error);
-                    return res.status(500).json({ error: 'Internal Server Error' });
-                }
-            } else {
-                return res.status(400).json({ error: `Invalid type: ${type}` });
-            }
+        if (!Array.isArray(dictFields)) {
+            return res.status(400).json({ error: `Invalid dictionary format for '${name}'` });
         }
-        return res.status(201).json(results);
+
+        // Validate input data contains all required fields
+        const missingFields = dictFields.filter((field) => !(field in inputData));
+        if (missingFields.length > 0) {
+            return res.status(400).json({ error: `Missing required fields: ${missingFields.join(', ')}` });
+        }
+
+        // Insert the log into the database
+        const logData = dictFields.reduce((acc, field) => {
+            acc[field] = inputData[field]; // Dynamically map each field from input
+            return acc;
+        }, {});
+
+        await pool.query(
+            `INSERT INTO logs (dict_id, data) VALUES ($1, $2)`,
+            [dictResult.rows[0].id, JSON.stringify(logData)]
+        );
+
+        return res.status(201).json({ message: 'Log successfully saved', log: logData });
     } catch (error) {
-        console.error('Error fetching dictionary data or validating application:', error);
+        console.error('Error writing log:', error);
         return res.status(500).json({ error: 'Internal Server Error' });
     }
 });
 
-
 // Read endpoint (accessible by all authenticated users)
-app.get('/read',  authenticateAndAuthorize(['user','admin','owner']), async (req, res) => {
+app.get('/read', authenticateAndAuthorize(['user', 'admin', 'owner']), async (req, res) => {
     const logs = req.query.logs;
     const sort = req.query.sort;
     const dictName = req.query.name;
+    const dictId = req.query.dict_id;
 
     if (logs !== 'all') {
-        return res.status(400).json({ error: 'Invalid query parameter' });
+        return res.status(400).json({ error: 'Invalid query parameter. Expected logs=all.' });
     }
 
     try {
-        let query = 'SELECT * FROM logs';
         let queryParams = [];
+        let query = 'SELECT * FROM logs';
+
+        // Add filters dynamically based on provided parameters
+        if (dictId) {
+            query += ' WHERE dict_id = $1';
+            queryParams.push(dictId);
+        }
 
         if (dictName) {
-            query += ' WHERE dict_name = $1';
+            query += queryParams.length ? ' AND dict_name = $2' : ' WHERE dict_name = $1';
             queryParams.push(dictName);
         }
 
@@ -504,36 +507,16 @@ app.get('/read',  authenticateAndAuthorize(['user','admin','owner']), async (req
             queryParams.push(sort);
         }
 
-        const result = await pool.query(query, queryParams);
+        const logsResult = await pool.query(query, queryParams);
 
-        if (dictName) {
-            const dictResult = await pool.query('SELECT data FROM dictionaries WHERE name = $1', [dictName]);
-
-            if (dictResult.rowCount === 0) {
-                return res.status(404).json({ error: `Dictionary with name '${dictName}' not found` });
-            }
-
-            const predefinedTypes = dictResult.rows[0].data;
-            const dictResultFormatted = result.rows.reduce((acc, log) => {
-                const type = log.type || 'undefined';
-                if (predefinedTypes[type]) {
-                    if (!acc[type]) {
-                        acc[type] = [];
-                    }
-                    acc[type].push(log.data);
-                }
-                return acc;
-            }, {});
-
-            return res.status(200).json(dictResultFormatted);
-        } else {
-            return res.status(200).json(result.rows);
-        }
+        // Return the filtered logs
+        return res.status(200).json(logsResult.rows);
     } catch (error) {
         console.error('Error reading from database:', error);
         return res.status(500).json({ error: 'Internal Server Error' });
     }
 });
+
 
 // Create dictionary endpoint (requires 'admin' role)
 app.post('/create-dictionary', authenticateAndAuthorize(['admin','owner', 'user']), async (req, res) => {
@@ -636,7 +619,7 @@ app.get('/create-dictionary', authenticateAndAuthorize(['admin','owner', 'user']
     res.render('createdict');
 });
 
-app.get("/user-dashboard", authenticateAndAuthorize(['owner']), async (req, res) => {
+app.get("/user-dashboard", authenticateAndAuthorize(['owner','admin','user']), async (req, res) => {
     try {
         const result = await pool.query('SELECT * FROM users');
         res.status(200).render('users', {users: result.rows });
@@ -646,7 +629,7 @@ app.get("/user-dashboard", authenticateAndAuthorize(['owner']), async (req, res)
     }
 });
 
-app.post('/update-role', authenticateAndAuthorize(['owner']), async (req, res) => {
+app.post('/update-role', authenticateAndAuthorize(['owner','admin','user']), async (req, res) => {
     const { user_id, role } = req.body;
 
     if (!user_id || !role) {

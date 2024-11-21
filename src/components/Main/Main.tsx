@@ -1,7 +1,7 @@
 import React, { ReactNode, useEffect, useState } from "react";
 import styled from "styled-components";
 import ErrorContainer from "../ErrorContainer/ErrorContainer";
-import Button from '@mui/material/Button';
+import Button from "@mui/material/Button";
 import Result from "./Result";
 
 const StyledMain = styled.div`
@@ -42,24 +42,17 @@ const Main: React.FC<MainProps> = ({ children }) => {
   const [data, setData] = useState<DataItem[]>([]);
 
   const fetchData = async () => {
-    const url = `http://localhost:8000/read?logs=all&dict=1&sort=`;
-  
+    const url = "http://localhost:8000/read?logs=all&dict=1&sort=";
+
     try {
-      const token = sessionStorage.getItem("jwtToken");
-      if (!token) {
-        alert('You need to log in first!');
-        window.location.href = '/login';
-        return;
-      }
-  
       const response = await fetch(url, {
         method: "GET",
         headers: {
-          Accept: "application/json", // Ensure we accept JSON
-          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
         },
+        credentials: "include", // Include cookies in the request
       });
-  
+
       // Check if the response is HTML (this is typically an error page)
       if (response.headers.get("content-type")?.includes("text/html")) {
         const errorHtml = await response.text();
@@ -67,23 +60,27 @@ const Main: React.FC<MainProps> = ({ children }) => {
         alert("Server returned an error. Please check the console.");
         return;
       }
-  
+
       // Try to parse the JSON response
       const data = await response.json();
       console.log("Fetched data:", data);
-  
+
       // Format and set the data
       const formattedData = data.map((item: any) => ({
         ...item,
-        timestamp: new Date(item.timestamp * 1000).toLocaleString(),
+        timestamp: item.timestamp
+          ? new Date(item.timestamp).toLocaleString('en-US', { timeZone: 'UTC' }) // Format the ISO timestamp
+          : 'Invalid Timestamp', // Handle missing or invalid timestamps
       }));
+
       setData(formattedData);
     } catch (error) {
       console.error("Error fetching data:", error);
-      alert("Error fetching data. Please check the console.");
+      alert("An error occurred while fetching data. Please try again later.");
     }
   };
-  
+
+
 
   return (
     <StyledMain>
@@ -93,7 +90,7 @@ const Main: React.FC<MainProps> = ({ children }) => {
           <Button
             variant="contained"
             size="large"
-            onClick={fetchData}  // Trigger fetch on click
+            onClick={fetchData} // Trigger fetch on click
             style={{ fontSize: "20px", marginTop: "5px", marginBottom: "20px" }}
           >
             Fetch Data

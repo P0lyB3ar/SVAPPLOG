@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from "react";
 import styled from "styled-components";
 import Button from '@mui/material/Button';
-import { responsiveFontSizes } from "@mui/material";
 
 const StyledMain = styled.div`
   background: #010409;
@@ -44,9 +43,9 @@ const UserDashboard: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [isAuthorized, setIsAuthorized] = useState(false);
 
-  // Verify user role
-  const verifyUserRole = async () => {
-    const url = `https://svapplog.onrender.com/verify-role`; // Replace with actual URL
+  // Verify if the JWT token is valid
+  const verifyToken = async () => {
+    const url = `http://localhost:8000/verify-token`; // A new backend endpoint for token validation
     try {
       const token = sessionStorage.getItem("jwtToken");
       if (!token) {
@@ -56,7 +55,7 @@ const UserDashboard: React.FC = () => {
       }
 
       const response = await fetch(url, {
-        method: "GET",
+        method: "POST", // Assuming POST for security reasons
         headers: {
           Accept: "application/json",
           Authorization: `Bearer ${token}`,
@@ -64,20 +63,14 @@ const UserDashboard: React.FC = () => {
       });
 
       if (response.ok) {
-        const data = await response.json();
-        if (data.role === "admin" || data.role === "owner") {
-          setIsAuthorized(true);
-        } else {
-          alert('Unauthorized access!');
-          window.location.href = '/unauthorized';
-        }
+        setIsAuthorized(true);
       } else {
-        alert('Failed to verify role.');
+        alert('Invalid or expired token.');
         window.location.href = '/login';
       }
     } catch (error) {
-      console.error("Error verifying role:", error);
-      alert("Error verifying role.");
+      console.error("Error verifying token:", error);
+      alert("Error verifying token.");
       window.location.href = '/login';
     } finally {
       setIsLoading(false);
@@ -86,7 +79,7 @@ const UserDashboard: React.FC = () => {
 
   // Fetch users for dashboard
   const fetchUsers = async () => {
-    const url = `https://svapplog.onrender.com/user-dashboard`;
+    const url = `http://localhost:8000/user-dashboard`;
     try {
       const token = sessionStorage.getItem("jwtToken");
       if (!token) {
@@ -113,7 +106,7 @@ const UserDashboard: React.FC = () => {
 
   // Update user role
   const updateRole = async (userId: number, role: string) => {
-    const url = `https://svapplog.onrender.com/update-role`;
+    const url = `http://localhost:8000/update-role`;
     const body = { user_id: userId, role };
 
     try {
@@ -147,7 +140,7 @@ const UserDashboard: React.FC = () => {
   };
 
   useEffect(() => {
-    verifyUserRole();
+    verifyToken();
   }, []);
 
   useEffect(() => {

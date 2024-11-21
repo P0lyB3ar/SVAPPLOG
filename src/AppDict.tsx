@@ -1,5 +1,5 @@
 import Header from './components/Header/Header';
-import MainDictionary from './components/Main/Dictionary';
+import MainDictionary from './components/Dictionary/Dictionary';
 
 // Sample dictionaries data
 const dictionaries = [

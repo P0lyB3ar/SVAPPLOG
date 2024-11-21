@@ -8,14 +8,34 @@ interface ResultProps {
 
 const Result: React.FC<ResultProps> = ({ rows }) => {
   const columns = [
-    { field: 'id', headerName: 'User_ID', width: 150 },
-    { field: 'user', headerName: 'User', width: 250 },
-    { field: 'name', headerName: 'Name', width: 320 },
-    { field: 'type', headerName: 'Action', width: 380 },
-    { field: 'timestamp', headerName: 'Time Stamp', width: 380 },
-    { field: 'path', headerName: 'Path', width: 277 },
+    { field: 'id', headerName: 'User_ID', width: 100 },
+    { field: 'user', headerName: 'User', width: 150 },
+    { field: 'type', headerName: 'Action', width: 200 },
+    { field: 'timestamp', headerName: 'Time Stamp', width: 200 },
+    { field: 'path', headerName: 'Path', width: 250 },
   ];
 
+  // Process the rows to flatten nested "data.user"
+  const processedRows = rows.map(row => {
+    // Log the raw timestamp for debugging
+    console.log("Raw timestamp:", row.timestamp);
+  
+    return {
+      id: row.id,
+      user: row.data?.user || 'N/A', // Extract user from data or default to 'N/A'
+      type: row.type,
+      timestamp: row.timestamp
+        ? (() => {
+            const date = new Date(row.timestamp);
+            return isNaN(date.getTime())
+              ? 'Invalid Timestamp'
+              : date.toLocaleString('en-US', { timeZone: 'UTC' }); // Format timestamp
+          })()
+        : 'Timestamp Missing', // Handle missing timestamps
+      path: row.path || 'N/A', // Default to 'N/A' if path is null
+    };
+  });
+  
   const sx: SxProps = {
     '& .MuiDataGrid-root': {
       fontSize: '16px',
@@ -59,17 +79,15 @@ const Result: React.FC<ResultProps> = ({ rows }) => {
     '& .MuiDataGrid-row': {
       backgroundColor: '#C6F2F4',
     },
-    // Styling for selected rows
     '& .MuiDataGrid-row.Mui-selected': {
-      backgroundColor: '#ffffff !important', // Turns the row white when clicked
-      color: '#0d1117 !important', // Ensures text remains visible
+      backgroundColor: '#ffffff !important',
+      color: '#0d1117 !important',
     },
     '& .MuiDataGrid-row.Mui-selected:hover': {
-      backgroundColor: '#f0f0f0 !important', // Slightly lighter shade on hover
+      backgroundColor: '#f0f0f0 !important',
     },
-    // Checkbox styling for selected rows
     '& .MuiCheckbox-root.Mui-checked': {
-      color: '#ffffff !important', // White checkbox color
+      color: '#ffffff !important',
     },
   };
 
@@ -77,7 +95,7 @@ const Result: React.FC<ResultProps> = ({ rows }) => {
     <div style={{ height: 680, width: '100%' }}>
       <DataGrid
         sx={sx}
-        rows={rows}
+        rows={processedRows}
         columns={columns}
         pagination
         pageSizeOptions={[5, 10, 25]}

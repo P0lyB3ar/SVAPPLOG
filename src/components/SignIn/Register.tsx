@@ -48,13 +48,8 @@ export default function Register() {
     };
 
     try {
-<<<<<<< HEAD
-      const response = await fetch('https://localhost:8000', {
+      const response = await fetch('http://localhost:8000/register', {
         method: 'POST',
-=======
-      const response = await fetch("http://localhost:8000/register", {
-        method: "POST",
->>>>>>> bf833640d35d0e357e3ad8e27e4cdc4d96e321fc
         headers: {
           "Content-Type": "application/json",
         },

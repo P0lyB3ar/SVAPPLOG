@@ -7,6 +7,8 @@ import EditDict from './EditDict';
 import Register from './components/SignIn/Register';
 import ForgottenPassword from './components/SignIn/ForgottenPassword';
 import UserD from './UserD';
+import AppOrg from './AppOrg';
+import AppApp from './AppApp';
 
 const App = () => {
   return (
@@ -19,6 +21,8 @@ const App = () => {
           <Route path="/dictionary" element={<AppDict/>}/>
           <Route path="/editdictionary/:name" element={<EditDict/>}/>
           <Route path="/user-dashboard" element={<UserD/>}/>  
+          <Route path="/application" element={<AppApp/>}/>
+          <Route path="/organization" element={<AppOrg/>}/>        
         </Routes>
     </BrowserRouter>
   )
