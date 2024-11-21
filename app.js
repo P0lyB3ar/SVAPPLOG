@@ -619,15 +619,16 @@ app.get('/create-dictionary', authenticateAndAuthorize(['admin','owner', 'user']
     res.render('createdict');
 });
 
-app.get("/user-dashboard", authenticateAndAuthorize(['owner','admin','user']), async (req, res) => {
+app.get("/user-dashboard", authenticateAndAuthorize(['owner', 'admin', 'user']), async (req, res) => {
     try {
         const result = await pool.query('SELECT * FROM users');
-        res.status(200).render('users', {users: result.rows });
+        res.status(200).json({ users: result.rows });
     } catch (error) {
         console.error('Error fetching users:', error);
-        res.status(500).render('error', { error: 'Internal server error' });
+        res.status(500).json({ error: 'Internal server error' });
     }
 });
+
 
 app.post('/update-role', authenticateAndAuthorize(['owner','admin','user']), async (req, res) => {
     const { user_id, role } = req.body;
