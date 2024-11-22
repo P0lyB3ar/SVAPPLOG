@@ -20,9 +20,9 @@ const App = () => {
           <Route path="/main" element={<><Header/><Main/></>} />
           <Route path="/dictionary" element={<AppDict/>}/>
           <Route path="/editdictionary/:name" element={<EditDict/>}/>
-          <Route path="/user-dashboard" element={<UserD/>}/>  
+          <Route path="/users" element={<UserD/>}/>  
           <Route path="/application" element={<AppApp/>}/>
-          <Route path="/organization" element={<AppOrg/>}/>        
+          <Route path="/organisation" element={<AppOrg/>}/>        
         </Routes>
     </BrowserRouter>
   )

@@ -109,7 +109,7 @@ const OrganisationsPage: React.FC = () => {
   useEffect(() => {
     const fetchOrganisations = async () => {
       try {
-        const response = await fetch("/list-organisations", {
+        const response = await fetch("http://localhost:8000/list-organisations", {
           headers: {
             Authorization: `Bearer ${sessionStorage.getItem("jwtToken")}`,
           },
@@ -142,21 +142,21 @@ const OrganisationsPage: React.FC = () => {
   };
 
   useEffect(() => {
-    fetchSuggestions("/list-application", setApplications);
-    fetchSuggestions("/list-dictionary", setDictionaries);
-    fetchSuggestions("/user-dashboard", setUsers);
+    fetchSuggestions("http://localhost:8000/list-application", setApplications);
+    fetchSuggestions("http://localhost:8000/list-dictionary", setDictionaries);
+    fetchSuggestions("http://localhost:8000/user-dashboard", setUsers);
   }, []);
 
   const handleCreateOrganisation = async () => {
     try {
       const payload = {
+        organisationName,
         applicationName,
         dictionaryName,
         userName,
       };
-      
 
-      const response = await fetch("/create-organisation", {
+      const response = await fetch("http://localhost:8000/create-organisation", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -167,22 +167,25 @@ const OrganisationsPage: React.FC = () => {
 
       if (response.ok) {
         const data = await response.json();
-        setOrganisations((prev) => [...prev, data.user.organisation]);
+        setOrganisations((prev) => [...prev, data.organisationName]);
         setOrganisationName("");
         setApplicationName("");
         setDictionaryName("");
         setUserName("");
+        alert("Organisation created successfully!");
       } else {
         console.error("Failed to create organisation");
+        alert("Error creating organisation.");
       }
     } catch (error) {
       console.error(error);
+      alert("An error occurred. Please try again.");
     }
   };
 
   const handleDeleteOrganisation = async (orgName: string) => {
     try {
-      const response = await fetch(`/delete-organisation/${orgName}`, {
+      const response = await fetch(`http://localhost:8000//delete-organisation/${orgName}`, {
         method: "DELETE",
         headers: {
           Authorization: `Bearer ${sessionStorage.getItem("jwtToken")}`,
@@ -225,11 +228,10 @@ const OrganisationsPage: React.FC = () => {
               label="Add Application (optional)"
               variant="outlined"
               fullWidth
-              sx={{ ...overlineStyle, marginTop: "20px", width: "80%" }} // Set width to 80% to match organisationName
+              sx={{ ...overlineStyle, marginTop: "20px", width: "80%" }}
             />
           )}
         />
-
         <StyledAutocomplete
           freeSolo
           options={dictionaries}
@@ -238,14 +240,13 @@ const OrganisationsPage: React.FC = () => {
           renderInput={(params) => (
             <TextField
               {...params}
-              label="Add Dictionary (optional)"
+              label="Select Dictionary"
               variant="outlined"
               fullWidth
               sx={{ ...overlineStyle, marginTop: "20px", width: "80%" }}
             />
           )}
         />
-
         <StyledAutocomplete
           freeSolo
           options={users}
@@ -254,7 +255,7 @@ const OrganisationsPage: React.FC = () => {
           renderInput={(params) => (
             <TextField
               {...params}
-              label="Add User (optional)"
+              label="Select User"
               variant="outlined"
               fullWidth
               sx={{ ...overlineStyle, marginTop: "20px", width: "80%" }}

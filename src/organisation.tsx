@@ -1,10 +1,10 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
-import AppApp from "./AppApp";
+import AppOrg from "./AppOrg";
 
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
-    <AppApp/>
+    <AppOrg/>
   </StrictMode>,
 );

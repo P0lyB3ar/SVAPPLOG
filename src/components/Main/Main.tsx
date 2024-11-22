@@ -1,7 +1,7 @@
-import React, { ReactNode, useEffect, useState } from "react";
+import React, { ReactNode, useState } from "react";
 import styled from "styled-components";
 import ErrorContainer from "../ErrorContainer/ErrorContainer";
-import Button from "@mui/material/Button";
+import Button from '@mui/material/Button';
 import Result from "./Result";
 
 const StyledMain = styled.div`
@@ -22,7 +22,7 @@ const Container = styled.div`
   box-sizing: border-box;
   width: 100%;
   border-radius: 10px;
-  max-height: 50rem;
+  max-height: 85%;
   overflow: hidden;
 `;
 
@@ -50,10 +50,9 @@ const Main: React.FC<MainProps> = ({ children }) => {
         headers: {
           "Content-Type": "application/json",
         },
-        credentials: "include", // Include cookies in the request
+        credentials: "include",
       });
 
-      // Check if the response is HTML (this is typically an error page)
       if (response.headers.get("content-type")?.includes("text/html")) {
         const errorHtml = await response.text();
         console.error("Received HTML instead of JSON:", errorHtml);
@@ -61,16 +60,14 @@ const Main: React.FC<MainProps> = ({ children }) => {
         return;
       }
 
-      // Try to parse the JSON response
       const data = await response.json();
       console.log("Fetched data:", data);
 
-      // Format and set the data
       const formattedData = data.map((item: any) => ({
         ...item,
         timestamp: item.timestamp
           ? new Date(item.timestamp).toLocaleString('en-US', { timeZone: 'UTC' }) // Format the ISO timestamp
-          : 'Invalid Timestamp', // Handle missing or invalid timestamps
+          : 'Invalid Timestamp',
       }));
 
       setData(formattedData);
@@ -81,7 +78,6 @@ const Main: React.FC<MainProps> = ({ children }) => {
   };
 
 
-
   return (
     <StyledMain>
       <Container>
@@ -90,13 +86,12 @@ const Main: React.FC<MainProps> = ({ children }) => {
           <Button
             variant="contained"
             size="large"
-            onClick={fetchData} // Trigger fetch on click
+            onClick={fetchData}
             style={{ fontSize: "20px", marginTop: "5px", marginBottom: "20px" }}
           >
             Fetch Data
           </Button>
         </div>
-        {/* Pass the fetched data to Result component */}
         <Result rows={data} />
         {children}
       </Container>

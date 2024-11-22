@@ -346,36 +346,44 @@ app.get('/create-application', authenticateAndAuthorize(['user', 'admin', 'owner
 });
 
 app.post('/create-application', authenticateAndAuthorize(['user', 'admin', 'owner']), async (req, res) => {
-    const { applicationName, organisationName } = req.body;
-    const userId = req.user.user_id;
-    // Validate that both application name and organisation name are provided
-    if (!applicationName || !organisationName) {
-        return res.status(400).json({ error: 'Application name and organisation name are required' });
-    }
-
     try {
+        // Extract required fields from the JSON body
+        const { applicationName, organisationName } = req.body;
+        const userId = req.user.user_id;
+
+        // Validate required fields
+        if (!applicationName || !organisationName) {
+            return res.status(400).json({
+                success: false,
+                error: 'Application name and organisation name are required',
+            });
+        }
+
         // Generate a secure application secret
         const applicationSecret = crypto.randomBytes(32).toString('hex');
 
-        // Prepare the SQL query to insert the new application
-        const applicationInsertQuery = `
+        // Insert new application into the database
+        const query = `
             INSERT INTO applications (name, secret, organisation, user_id)
             VALUES ($1, $2, $3, $4)
             RETURNING *;
         `;
-        const applicationInsertValues = [applicationName, applicationSecret, organisationName, userId];
+        const values = [applicationName, applicationSecret, organisationName, userId];
 
-        // Execute the query to insert the application
-        const appResult = await pool.query(applicationInsertQuery, applicationInsertValues);
-        const createdApplication = appResult.rows[0];
+        const result = await pool.query(query, values);
 
-        // Check if the application was created successfully
+        // Check if the application was successfully created
+        const createdApplication = result.rows[0];
         if (!createdApplication) {
-            return res.status(500).json({ error: 'Failed to create application' });
+            return res.status(500).json({
+                success: false,
+                error: 'Failed to create application',
+            });
         }
 
-        // Respond with the created application details, including the secret
+        // Return the created application details
         res.status(201).json({
+            success: true,
             message: 'Application created successfully',
             application: {
                 name: createdApplication.name,
@@ -386,7 +394,10 @@ app.post('/create-application', authenticateAndAuthorize(['user', 'admin', 'owne
         });
     } catch (error) {
         console.error('Error creating application:', error);
-        res.status(500).json({ error: 'Internal Server Error' });
+        res.status(500).json({
+            success: false,
+            error: 'Internal Server Error',
+        });
     }
 });
 
@@ -400,8 +411,8 @@ app.get('/list-applications', authenticateAndAuthorize(['user', 'admin', 'owner'
     try {
         // Query to fetch all applications associated with the user
         const applicationQuery = `
-            SELECT application 
-            FROM users 
+            SELECT name
+            FROM applications
             WHERE user_id = $1
         `;
         const applicationValues = [userId];
@@ -415,7 +426,8 @@ app.get('/list-applications', authenticateAndAuthorize(['user', 'admin', 'owner'
             return res.status(404).json({ message: 'No applications found for the user' });
         }
 
-        const applications = result.rows.map(row => row.application);  // Extract application names
+        // Corrected line: Extract application names using the 'name' column
+        const applications = result.rows.map(row => row.name);
 
         res.status(200).json({
             message: 'Applications retrieved successfully',
@@ -426,6 +438,7 @@ app.get('/list-applications', authenticateAndAuthorize(['user', 'admin', 'owner'
         res.status(500).json({ message: 'Internal Server Error' });
     }
 });
+
 
 app.post('/write', async (req, res) => {
     const { name } = req.query; // Extract dictionary name from query parameters

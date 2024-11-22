@@ -50,7 +50,7 @@ const DictionaryEdit: React.FC = () => {
   useEffect(() => {
     const fetchDictionary = async () => {
       try {
-        const response = await fetch(`http://localhost:8000/dictionary/${name}`);
+        const response = await fetch(`https://svapplog.onrender.com/dictionary/${name}`);
         if (!response.ok) {
           const errorData = await response.json();
           setError(errorData.error || "Failed to fetch dictionary");

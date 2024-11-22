@@ -283,8 +283,8 @@ const MainDictionary: React.FC<MainDictionaryProps> = () => {
                   sx={{
                     padding: "2px 10px",
                     minWidth: "auto",
-                    fontSize: "1.2rem",
-                    height: "35px",
+                    fontSize: "96%",
+                    height: "20%  ",
                     marginTop: "10px",
                   }}
                 >
@@ -305,8 +305,7 @@ const MainDictionary: React.FC<MainDictionaryProps> = () => {
               sx={{
                 padding: "2px 10px",
                 minWidth: "auto",
-                fontSize: "1.2rem",
-                marginTop: "",
+                fontSize: "96%",
               }}
               variant="contained"
               onClick={addActionField}
@@ -314,7 +313,7 @@ const MainDictionary: React.FC<MainDictionaryProps> = () => {
               Add Action
             </Button>
             <Button
-              sx={{ padding: "2px 10px", minWidth: "auto", fontSize: "1.2rem" }}
+              sx={{ padding: "2px 10px", minWidth: "auto", fontSize: "96%", }}
               variant="contained"
               disabled={!dictionaryName}
               type="submit"

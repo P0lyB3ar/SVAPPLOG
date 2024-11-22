@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React from "react";
 import styled from "styled-components";
 
 interface StyledMenuProps {
@@ -40,6 +40,7 @@ const StyledMenu = styled.nav<StyledMenuProps>`
     color: #7cc0d4;
     text-decoration: none;
     transition: color 0.1s linear;
+    cursor: pointer;
 
     @media (max-width: 576px) {
       font-size: 1.5rem;
@@ -53,30 +54,6 @@ const StyledMenu = styled.nav<StyledMenuProps>`
 `;
 
 const Menu: React.FC<MenuProps> = ({ open, setOpen }) => {
-  const [role, setRole] = useState<string | null>(null);
-
-  useEffect(() => {
-    const fetchRole = async () => {
-      try {
-        const response = await fetch("https://localhost:8000/get-user-role", {
-          method: "GET",
-          credentials: "include", // Include cookies (if needed for session)
-        });
-
-        if (!response.ok) {
-          throw new Error("Failed to fetch role");
-        }
-
-        const data = await response.json();
-        setRole(data.role);
-      } catch (error) {
-        console.error("Error fetching user role:", error);
-      }
-    };
-
-    fetchRole();
-  }, []);
-
   return (
     <StyledMenu open={open}>
       <a href="/main" onClick={() => setOpen(false)}>
@@ -85,16 +62,14 @@ const Menu: React.FC<MenuProps> = ({ open, setOpen }) => {
       <a href="./dictionary" onClick={() => setOpen(false)}>
         Dictionary
       </a>
-      {role === "admin" && (
-        <a href="./user-dashboard" onClick={() => setOpen(false)}>
-          Users
-        </a>
-      )}
       <a href="./application" onClick={() => setOpen(false)}>
         Application
       </a>
-      <a href="./organization" onClick={() => setOpen(false)}>
-        Organization
+      <a href="./organisation" onClick={() => setOpen(false)}>
+        Organisation
+      </a>
+      <a href="./users" onClick={() => setOpen(false)}>
+        Users
       </a>
     </StyledMenu>
   );

@@ -1,6 +1,10 @@
 import React, { useEffect, useState } from "react";
 import styled from "styled-components";
-import Button from '@mui/material/Button';
+import Button from "@mui/material/Button";
+import Select from "@mui/material/Select";
+import MenuItem from "@mui/material/MenuItem";
+import { DataGrid } from "@mui/x-data-grid";
+import { SxProps } from "@mui/system";
 
 const StyledMain = styled.div`
   background: #010409;
@@ -12,7 +16,7 @@ const StyledMain = styled.div`
 `;
 
 const Container = styled.div`
-  margin-top: 160px;
+  margin-top: 250px;
   margin-bottom: 95px;
   background: #151b23;
   padding: 20px;
@@ -24,13 +28,6 @@ const Container = styled.div`
   overflow: hidden;
 `;
 
-const LoadingScreen = styled.div`
-  color: white;
-  font-size: 4rem;
-  font-style: sans-serif;
-  font-weight: bold;
-`;
-
 interface UserItem {
   user_id: number;
   username: string;
@@ -38,176 +35,207 @@ interface UserItem {
   created_on: string;
 }
 
+// Utility function to handle API requests
+const fetchData = async (url: string, options: RequestInit = {}): Promise<any> => {
+  const token = localStorage.getItem("jwtToken"); // Retrieve token from localStorage
+
+  try {
+    const response = await fetch(url, {
+      credentials: "include",
+      headers: {
+        Accept: "application/json",
+        "Content-Type": "application/json",
+        ...(token ? { Authorization: `Bearer ${token}` } : {}), // Add Authorization header if token exists
+        ...options.headers,
+      },
+      ...options,
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.message || "An error occurred");
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error(`Error with request to ${url}:`, error);
+    throw error;
+  }
+};
+
 const UserDashboard: React.FC = () => {
   const [users, setUsers] = useState<UserItem[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isAuthorized, setIsAuthorized] = useState(false);
+  const [roles, setRoles] = useState<{ [key: number]: string }>({}); // Store selected roles
 
-  // Verify if the JWT token is valid
-  const verifyToken = async () => {
-    const url = `http://localhost:8000/verify-token`; // A new backend endpoint for token validation
+  // Define the updateRole function
+  const updateRole = async (userId: number) => {
+    const url = `http://localhost:8000/update-role`;
+    const role = roles[userId]; // Get the selected role for the user
+    const body = { user_id: userId, role };
+  
     try {
-      const token = sessionStorage.getItem("jwtToken");
-      if (!token) {
-        alert('You need to log in first!');
-        window.location.href = '/login';
-        return;
-      }
-
-      const response = await fetch(url, {
-        method: "POST", // Assuming POST for security reasons
-        headers: {
-          Accept: "application/json",
-          Authorization: `Bearer ${token}`,
-        },
+      await fetchData(url, {
+        method: "POST",
+        body: JSON.stringify(body),
       });
-
-      if (response.ok) {
-        setIsAuthorized(true);
-      } else {
-        alert('Invalid or expired token.');
-        window.location.href = '/login';
-      }
+      alert("Role updated successfully!");
+      fetchUsers(); // Refresh the table with updated data
     } catch (error) {
-      console.error("Error verifying token:", error);
-      alert("Error verifying token.");
-      window.location.href = '/login';
-    } finally {
-      setIsLoading(false);
+      if (error instanceof Error) {
+        alert(`Error: ${error.message}`);
+      } else {
+        console.error("Unknown error occurred:", error);
+        alert("An unexpected error occurred.");
+      }
     }
   };
-
-  // Fetch users for dashboard
+  
+  // Fetch users
   const fetchUsers = async () => {
     const url = `http://localhost:8000/user-dashboard`;
     try {
-      const token = sessionStorage.getItem("jwtToken");
-      if (!token) {
-        alert('You need to log in first!');
-        window.location.href = '/login';
-        return;
-      }
-
-      const response = await fetch(url, {
-        method: "GET",
-        headers: {
-          Accept: "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-      });
-
-      const data = await response.json();
-      setUsers(data.users); // Assuming response is in the format { users: [...] }
+      const data = await fetchData(url, { method: "GET" });
+      setUsers(data.users);
+      const initialRoles = Object.fromEntries(data.users.map((user: UserItem) => [user.user_id, user.role]));
+      setRoles(initialRoles); // Initialize roles state
     } catch (error) {
-      console.error("Error fetching users:", error);
-      alert("Error fetching users.");
-    }
-  };
-
-  // Update user role
-  const updateRole = async (userId: number, role: string) => {
-    const url = `http://localhost:8000/update-role`;
-    const body = { user_id: userId, role };
-
-    try {
-      const token = sessionStorage.getItem("jwtToken");
-      if (!token) {
-        alert('You need to log in first!');
-        window.location.href = '/login';
-        return;
-      }
-
-      const response = await fetch(url, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify(body),
-      });
-
-      if (response.ok) {
-        alert("Role updated successfully!");
-        fetchUsers(); // Refresh users after role update
+      if (error instanceof Error) {
+        alert(`Error fetching users: ${error.message}`);
       } else {
-        const error = await response.json();
-        alert(`Error: ${error.message || 'Failed to update role'}`);
+        console.error("Unknown error occurred:", error);
       }
-    } catch (error) {
-      console.error("Error updating role:", error);
-      alert("Error updating role.");
     }
   };
 
   useEffect(() => {
-    verifyToken();
+    fetchUsers();
   }, []);
 
-  useEffect(() => {
-    if (isAuthorized) {
-      fetchUsers();
-    }
-  }, [isAuthorized]);
+  const columns = [
+    { field: "user_id", headerName: "User ID", width: 150 },
+    { field: "username", headerName: "Username", width: 330 },
+    {
+      field: "role",
+      headerName: "Role",
+      width: 330,
+      renderCell: (params: any) => (
+        <Select
+          value={roles[params.row.user_id] || ""}
+          onChange={(e) =>
+            setRoles((prev) => ({ ...prev, [params.row.user_id]: e.target.value }))
+          }
+          style={{ color: "white", backgroundColor: "#0d1117", width: "100%" }}
+        >
+          <MenuItem value="admin">Admin</MenuItem>
+          <MenuItem value="user">User</MenuItem>
+          <MenuItem value="owner">Owner</MenuItem>
+        </Select>
+      ),
+    },
+    {
+      field: "created_on",
+      headerName: "Created On",
+      width: 330,
+      valueFormatter: (params: any) => new Date(params.value).toLocaleString(),
+    },
+    {
+      field: "actions",
+      headerName: "Actions",
+      width: 180,
+      renderCell: (params: any) => (
+        <Button
+          variant="contained"
+          onClick={() => updateRole(params.row.user_id)}
+          style={{ padding: "5px 10px" }}
+        >
+          Update
+        </Button>
+      ),
+    },
+  ];
 
-  if (isLoading) {
-    return (
-      <StyledMain>
-        <LoadingScreen >Loading...</LoadingScreen>
-      </StyledMain>
-    );
-  }
-
-  if (!isAuthorized) {
-    return null;
-  }
+  const sx: SxProps = {
+    '& .MuiDataGrid-root': {
+      fontSize: '16px',
+      height: '100%',
+    },
+    '& .MuiIconButton-root': {
+      color: '#fff',
+    },
+    '& .MuiDataGrid-iconSeparator': {
+      color: '#fff',
+    },
+    '& .MuiDataGrid-columnHeader': {
+      backgroundColor: '#0D1117',
+      color: '#fff',
+    },
+    '& .MuiDataGrid-columnHeaderTitle': {
+      fontWeight: 'bold',
+      fontSize: '16px',
+    },
+    '& .MuiDataGrid-cell': {
+      color: 'white',
+      borderBottom: '1px solid #30363d',
+      backgroundColor: '#0d1117',
+    },
+    '& .MuiDataGrid-footerContainer': {
+      backgroundColor: '#151b23',
+    },
+    '& .MuiDataGrid-toolbar': {
+      backgroundColor: '#e9ecef',
+    },
+    '& .MuiDataGrid-row': {
+      backgroundColor: '#C6F2F4',
+    },
+    '& .MuiDataGrid-row.Mui-selected': {
+      backgroundColor: '#ffffff !important',
+      color: '#0d1117 !important',
+    },
+    '& .MuiDataGrid-row.Mui-selected:hover': {
+      backgroundColor: '#f0f0f0 !important',
+    },
+    '& .MuiCheckbox-root.Mui-checked': {
+      color: '#ffffff !important',
+    },
+    '& .MuiDataGrid-scrollbarFiller': {
+      background: '#0D1117',
+    },
+    '& .MuiDataGrid-filler':{
+      backgroundColor: '#0D1117',
+    },
+    '& .MuiDataGrid-overlay': {
+      color: 'white',
+      background: '#0D1117',
+    },
+    '& .MuiToolbar-root':{
+      color:'white',
+    },
+    '& .MuiTablePagination-toolbar': {
+      color: 'white',
+    },
+  };
 
   return (
     <StyledMain>
       <Container>
-        <h1>User Dashboard</h1>
-        {users.length > 0 ? (
-          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-            <thead>
-              <tr>
-                <th>User ID</th>
-                <th>Username</th>
-                <th>Role</th>
-                <th>Created On</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {users.map((user) => (
-                <tr key={user.user_id}>
-                  <td>{user.user_id}</td>
-                  <td>{user.username}</td>
-                  <td>
-                    <select
-                      value={user.role}
-                      onChange={(e) => updateRole(user.user_id, e.target.value)}
-                    >
-                      <option value="admin">Admin</option>
-                      <option value="owner">Owner</option>
-                      <option value="user">User</option>
-                    </select>
-                  </td>
-                  <td>{new Date(user.created_on).toLocaleString()}</td>
-                  <td>
-                    <Button
-                      variant="contained"
-                      onClick={() => updateRole(user.user_id, user.role)}
-                      style={{ padding: '5px 10px', marginLeft: '10px' }}
-                    >
-                      Update
-                    </Button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        ) : (
-          <p>No users found.</p>
-        )}
+        <h1 style={{ color: "#ffffff", fontFamily: "Segoe UI, Tahoma, Geneva, Verdana, sans-serif" }}>User Dashboard</h1>
+        <div style={{ height: "560px", width: "100%" }}>
+          <DataGrid
+            sx={sx}
+            rows={users.map((user) => ({
+              id: user.user_id,
+              user_id: user.user_id,
+              username: user.username,
+              role: user.role,
+              created_on: user.created_on,
+              actions: "", // Empty string for actions column to trigger renderCell
+            }))}
+            columns={columns}
+            pageSize={5}
+            checkboxSelection
+            disableRowSelectionOnClick
+          />
+        </div>
       </Container>
     </StyledMain>
   );

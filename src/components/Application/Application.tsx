@@ -10,6 +10,8 @@ import {
   List,
   ListItem,
   ListItemText,
+  ListItemAvatar,
+  Tooltip,
 } from "@mui/material";
 import FolderIcon from "@mui/icons-material/Folder";
 import DeleteIcon from "@mui/icons-material/Delete";
@@ -68,6 +70,16 @@ const overlineStyle = {
   },
 };
 
+const StyledListItem = styled(ListItem)(() => ({
+  width: "100%",
+  maxWidth: 600,
+  marginTop: "10px",
+  marginLeft: "10px",
+  marginBottom: "10px",
+  marginRight: "200px",
+  fontSize: "1.2rem",
+}));
+
 const textStyle = {
   color: "#ffffff",
   fontSize: "0.9rem",
@@ -82,62 +94,124 @@ const ApplicationsPage: React.FC = () => {
   const [dictionaries, setDictionaries] = useState<string[]>([]);
   const [users, setUsers] = useState<string[]>([]);
 
-  useEffect(() => {
-    fetch("http://localhost:8000/list-applications", {
-      method: "GET",
-      headers: {
-        Authorization: `Bearer ${sessionStorage.getItem("jwtToken")}`,
-        "Content-Type": "application/json",
-      },
-    })
-      .then((res) => res.json())
-      .then((data) => setApplications(data.applications || []))
-      .catch(console.error);
-  }, []);
-
-  const fetchSuggestions = async (
-    endpoint: string,
-    setter: React.Dispatch<React.SetStateAction<string[]>>
-  ) => {
+  // Fetch applications
+  const fetchApplications = async () => {
     try {
-      const response = await fetch(endpoint, {
+      const response = await fetch("http://localhost:8000/list-applications", {
+        method: "GET",
+        credentials: "include", // Include cookies in the request
         headers: {
-          Authorization: `Bearer ${sessionStorage.getItem("jwtToken")}`,
+          "Content-Type": "application/json",
         },
       });
+      if (!response.ok) throw new Error("Failed to fetch applications");
       const data = await response.json();
-      setter(data.items || []);
+      setApplications(data.applications || []);
     } catch (error) {
-      console.error(`Failed to fetch from ${endpoint}`, error);
+      console.error("Error fetching applications:", error);
     }
   };
 
+  // Fetch dictionaries (names only)
+  const fetchDictionaries = async () => {
+    try {
+      const response = await fetch("http://localhost:8000/list-dictionaries", {
+        method: "GET",
+        credentials: "include", // Include cookies in the request
+        headers: {
+          "Content-Type": "application/json",
+        },
+      });
+      if (response.ok) {
+        const data = await response.json();
+        const dictionaryNames = data.dictionaries?.map(
+          (dict: { name: string }) => dict.name
+        );
+        setDictionaries(dictionaryNames || []);
+      } else {
+        console.error("Error fetching dictionaries:", response.status);
+      }
+    } catch (error) {
+      console.error("Error fetching dictionaries:", error);
+    }
+  };
+
+  // Fetch users
+  const fetchUsers = async () => {
+    try {
+      const response = await fetch("http://localhost:8000/user-dashboard", {
+        method: "GET",
+        credentials: "include", // Include cookies in the request
+        headers: {
+          "Content-Type": "application/json",
+        },
+      });
+      const data = await response.json();
+      const userNames = data.users?.map((user: { username: string }) => user.username);
+      setUsers(userNames || []);
+    } catch (error) {
+      console.error("Error fetching users:", error);
+    }
+  };
+
+  // Fetch data on mount
   useEffect(() => {
-    fetchSuggestions("/list-dictionary", setDictionaries);
-    fetchSuggestions("/user-dashboard", setUsers);
+    fetchApplications();
+    fetchDictionaries();
+    fetchUsers();
   }, []);
 
-  const handleCreateApplication = (e: React.FormEvent) => {
+  const handleCreateApplication = async (e: React.FormEvent) => {
     e.preventDefault();
+
     const payload = {
-      applicationName,
-      dictionaryName,
-      userName,
+      applicationName: applicationName || "",
+      dictionaryName: dictionaryName || "",
+      userName: userName || "",
     };
 
-    fetch("/create-application", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${sessionStorage.getItem("jwtToken")}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(payload),
-    })
-      .then((response) => response.json())
-      .then((data) => {
-        // You can handle the response here if necessary
-      })
-      .catch(console.error);
+    try {
+      const response = await fetch("http://localhost:8000/create-application", {
+        method: "POST",
+        credentials: "include", // Include cookies in the request
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to create application");
+      }
+
+      alert("Application created successfully!");
+      setApplicationName("");
+      setDictionaryName("");
+      setUserName("");
+      fetchApplications(); // Refresh applications after successful creation
+    } catch (error) {
+      console.error("Error creating application:", error);
+      alert(`Error creating application: ${error}`);
+    }
+  };
+
+  const handleDeleteApplication = async (appName: string) => {
+    try {
+      const response = await fetch(`http://localhost:8000/delete-application/${appName}`, {
+        method: "DELETE",
+      });
+
+      if (response.ok) {
+        setApplications((prevApps) =>
+          prevApps.filter((app) => app !== appName)
+        );
+        console.log(`Application ${appName} deleted successfully`);
+      } else {
+        console.error("Error deleting application:", response.status);
+      }
+    } catch (error) {
+      console.error("Error deleting application:", error);
+    }
   };
 
   return (
@@ -146,7 +220,6 @@ const ApplicationsPage: React.FC = () => {
         <Typography sx={{ ...textStyle, fontSize: "3rem" }}>
           Create Application
         </Typography>
-        {/* You can remove the <form> tag */}
         <TextField
           label="Application Name"
           variant="outlined"
@@ -164,7 +237,7 @@ const ApplicationsPage: React.FC = () => {
           renderInput={(params) => (
             <TextField
               {...params}
-              label="Add Dictionary (optional)"
+              label="Select Dictionary"
               variant="outlined"
               fullWidth
               sx={{ ...overlineStyle, marginTop: "20px", width: "80%" }}
@@ -179,7 +252,7 @@ const ApplicationsPage: React.FC = () => {
           renderInput={(params) => (
             <TextField
               {...params}
-              label="Add User (optional)"
+              label="Select User"
               variant="outlined"
               fullWidth
               sx={{ ...overlineStyle, marginTop: "20px", width: "80%" }}
@@ -187,11 +260,15 @@ const ApplicationsPage: React.FC = () => {
           )}
         />
         <Button
-          type="button" // Use type="button" since we're not submitting a form
+          type="button"
           variant="contained"
           disabled={!applicationName}
-          onClick={handleCreateApplication} // Trigger the function directly
-          sx={{ marginTop: "20px", fontSize: "1.1rem" }}
+          onClick={handleCreateApplication}
+          sx={{
+            marginTop: "20px",
+            fontSize: "1.1rem",
+            backgroundColor: "#1A9B49",
+          }}
         >
           Create
         </Button>
@@ -202,15 +279,22 @@ const ApplicationsPage: React.FC = () => {
         </Typography>
         <List>
           {applications.map((app, index) => (
-            <ListItem key={index}>
-              <Avatar>
-                <FolderIcon />
-              </Avatar>
-              <ListItemText primary={app} />
-              <IconButton>
-                <DeleteIcon />
-              </IconButton>
-            </ListItem>
+            <StyledListItem key={index}>
+              <ListItemAvatar>
+                <Avatar sx={{ backgroundColor: "#d4f4ff", height: 50, width: 50 }}>
+                  <FolderIcon sx={{ color: "grey" }} />
+                </Avatar>
+              </ListItemAvatar>
+              <ListItemText
+                primary={app}
+                primaryTypographyProps={{ ...textStyle, fontSize: "1.3rem" }}
+              />
+              <Tooltip title="Delete">
+                <IconButton onClick={() => handleDeleteApplication(app)}>
+                  <DeleteIcon sx={{ color: "white", height: "40px", width: "40px" }} />
+                </IconButton>
+              </Tooltip>
+            </StyledListItem>
           ))}
         </List>
       </Container>
