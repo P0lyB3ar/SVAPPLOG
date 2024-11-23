@@ -12,7 +12,6 @@ import DeleteIcon from "@mui/icons-material/Delete";
 import { Button, TextField } from "@mui/material";
 import Tooltip from "@mui/material/Tooltip";
 
-
 interface DictionaryItem {
   name: string;
   data: object;
@@ -120,9 +119,6 @@ const textStyle = {
 const MainDictionary: React.FC<MainDictionaryProps> = () => {
   const [dictionaryName, setDictionaryName] = useState("");
   const [actions, setActions] = useState<string[]>([""]);
-  const [selectedDictionary, setSelectedDictionary] = useState<string | null>(
-    null
-  );
   const [allDictionaries, setAllDictionaries] = useState<DictionaryItem[]>([]);
   const [error, setError] = useState<string | null>(null);
 
@@ -161,10 +157,9 @@ const MainDictionary: React.FC<MainDictionaryProps> = () => {
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
-
     const newDictionary = {
       name: dictionaryName,
-      actions: actions.filter((action) => action.trim() !== "") // Filter out empty actions
+      actions: actions.filter((action) => action.trim() !== ""), // Filter out empty actions
     };
 
     if (newDictionary.actions.length === 0) {
@@ -198,20 +193,13 @@ const MainDictionary: React.FC<MainDictionaryProps> = () => {
     }
   };
 
-  const handleDictionarySelect = (dictName: string) => {
-    setSelectedDictionary(dictName);
-  };
-
-  const handleDeselectDictionary = () => {
-    setSelectedDictionary(null);
-  };
-
   const handleDeleteDictionary = async (dictName: string) => {
     try {
       const response = await fetch(
         `http://localhost:8000/delete-dictionary/${dictName}`,
         {
           method: "DELETE",
+          credentials: "include",
         }
       );
 
@@ -316,7 +304,7 @@ const MainDictionary: React.FC<MainDictionaryProps> = () => {
           <List>
             {allDictionaries.map((dictionary) => (
               <StyledListItem
-                key={dictionary.id}
+                key={dictionary.name}
                 sx={{ backgroundColor: "#1e232b" }}
               >
                 <ListItemAvatar>
@@ -351,22 +339,17 @@ const MainDictionary: React.FC<MainDictionaryProps> = () => {
                   </IconButton>
                 </Tooltip>
                 <Tooltip title="View Dictionary">
-                  <IconButton
-                    onClick={() =>
-                      selectedDictionary === dictionary.name
-                        ? handleDeselectDictionary()
-                        : handleDictionarySelect(dictionary.name)
-                    }
-                    sx={{
-                      color: "#1db954",
-                      padding: "0px 5px",
-                      height: "100%",
-                    }}
-                  >
-                    {selectedDictionary === dictionary.name
-                      ? "Deselect"
-                      : "View"}
-                  </IconButton>
+                  <a href={`/editdictionary/${dictionary.name}`}>
+                    <IconButton
+                      sx={{
+                        color: "#1db954",
+                        padding: "0px 5px",
+                        height: "100%",
+                      }}
+                    >
+                      View
+                    </IconButton>
+                  </a>
                 </Tooltip>
               </StyledListItem>
             ))}

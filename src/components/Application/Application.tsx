@@ -90,6 +90,7 @@ const ApplicationsPage: React.FC = () => {
   const [applicationName, setApplicationName] = useState("");
   const [dictionaryName, setDictionaryName] = useState("");
   const [userName, setUserName] = useState("");
+  const [organisationName, setOrganisationName] = useState(""); // Added this state to track organisation name
   const [applications, setApplications] = useState<string[]>([]);
   const [dictionaries, setDictionaries] = useState<string[]>([]);
   const [users, setUsers] = useState<string[]>([]);
@@ -165,10 +166,10 @@ const ApplicationsPage: React.FC = () => {
     e.preventDefault();
 
     const payload = {
-      applicationName: applicationName || "",
-      dictionaryName: dictionaryName || "",
-      userName: userName || "",
+      applicationName: applicationName || "",   // If applicationName is provided, use it, else use an empty string
+      organisationName: organisationName || "", // If organisationName is provided, use it, else use an empty string
     };
+    
 
     try {
       const response = await fetch("http://localhost:8000/create-application", {
@@ -186,8 +187,7 @@ const ApplicationsPage: React.FC = () => {
 
       alert("Application created successfully!");
       setApplicationName("");
-      setDictionaryName("");
-      setUserName("");
+      setOrganisationName("");
       fetchApplications(); // Refresh applications after successful creation
     } catch (error) {
       console.error("Error creating application:", error);
@@ -198,7 +198,8 @@ const ApplicationsPage: React.FC = () => {
   const handleDeleteApplication = async (appName: string) => {
     try {
       const response = await fetch(`http://localhost:8000/delete-application/${appName}`, {
-        method: "DELETE",
+        credentials: "include",
+        method: "DELETE"
       });
 
       if (response.ok) {
@@ -229,40 +230,19 @@ const ApplicationsPage: React.FC = () => {
           required
           sx={{ ...overlineStyle, marginTop: "20px", width: "80%" }}
         />
-        <StyledAutocomplete
-          freeSolo
-          options={dictionaries}
-          value={dictionaryName}
-          onInputChange={(e, newValue) => setDictionaryName(newValue)}
-          renderInput={(params) => (
-            <TextField
-              {...params}
-              label="Select Dictionary"
-              variant="outlined"
-              fullWidth
-              sx={{ ...overlineStyle, marginTop: "20px", width: "80%" }}
-            />
-          )}
-        />
-        <StyledAutocomplete
-          freeSolo
-          options={users}
-          value={userName}
-          onInputChange={(e, newValue) => setUserName(newValue)}
-          renderInput={(params) => (
-            <TextField
-              {...params}
-              label="Select User"
-              variant="outlined"
-              fullWidth
-              sx={{ ...overlineStyle, marginTop: "20px", width: "80%" }}
-            />
-          )}
+        <TextField
+          label="Organisation Name"
+          variant="outlined"
+          fullWidth
+          value={organisationName}
+          onChange={(e) => setOrganisationName(e.target.value)}
+          required
+          sx={{ ...overlineStyle, marginTop: "20px", width: "80%" }}
         />
         <Button
           type="button"
           variant="contained"
-          disabled={!applicationName}
+          disabled={!applicationName || !organisationName}
           onClick={handleCreateApplication}
           sx={{
             marginTop: "20px",
@@ -291,7 +271,7 @@ const ApplicationsPage: React.FC = () => {
               />
               <Tooltip title="Delete">
                 <IconButton onClick={() => handleDeleteApplication(app)}>
-                  <DeleteIcon sx={{ color: "white", height: "40px", width: "40px" }} />
+                  <DeleteIcon sx={{ color: "red", height: "40px", width: "40px" }} />
                 </IconButton>
               </Tooltip>
             </StyledListItem>

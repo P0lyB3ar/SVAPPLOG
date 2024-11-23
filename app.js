@@ -344,6 +344,68 @@ app.get('/list-organisations', authenticateAndAuthorize(['user', 'admin', 'owner
     }
 });
 
+app.delete('/delete-organisation/:orgName', authenticateAndAuthorize(['admin', 'owner']), async (req, res) => {
+    try {
+        // Extract organisation name from the URL parameter
+        const { orgName } = req.params;
+        const userId = req.user.user_id;
+
+        // Validate required fields
+        if (!orgName) {
+            return res.status(400).json({
+                success: false,
+                error: 'Organisation name is required',
+            });
+        }
+
+        // Check if the organisation exists
+        const queryCheck = `
+            SELECT * FROM organisation WHERE organisation = $1 AND user_id = $2;
+        `;
+        const valuesCheck = [orgName, userId];
+        const resultCheck = await pool.query(queryCheck, valuesCheck);
+
+        if (resultCheck.rows.length === 0) {
+            return res.status(404).json({
+                success: false,
+                error: 'Organisation not found or you do not have permission to delete this organisation',
+            });
+        }
+
+        // Delete the organisation from the database
+        const queryDelete = `
+            DELETE FROM organisation WHERE organisation = $1 AND user_id = $2 RETURNING *;
+        `;
+        const valuesDelete = [orgName, userId];
+        const resultDelete = await pool.query(queryDelete, valuesDelete);
+
+        // Check if the organisation was successfully deleted
+        const deletedOrganisation = resultDelete.rows[0];
+        if (!deletedOrganisation) {
+            return res.status(500).json({
+                success: false,
+                error: 'Failed to delete organisation',
+            });
+        }
+
+        // Return success message
+        res.status(200).json({
+            success: true,
+            message: 'Organisation deleted successfully',
+            organisation: {
+                name: deletedOrganisation.name,
+            },
+        });
+    } catch (error) {
+        console.error('Error deleting organisation:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Internal Server Error',
+        });
+    }
+});
+
+
 // GET /create-application: Render the application creation form
 app.get('/create-application', authenticateAndAuthorize(['user', 'admin', 'owner']), (req, res) => {
     res.render('applications');
@@ -398,6 +460,69 @@ app.post('/create-application', authenticateAndAuthorize(['user', 'admin', 'owne
         });
     } catch (error) {
         console.error('Error creating application:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Internal Server Error',
+        });
+    }
+});
+
+
+app.delete('/delete-application/:applicationName', authenticateAndAuthorize(['user', 'admin', 'owner']), async (req, res) => {
+    try {
+        // Extract application name from the URL parameter
+        const { applicationName } = req.params;
+        const userId = req.user.user_id;
+
+        // Validate required fields
+        if (!applicationName) {
+            return res.status(400).json({
+                success: false,
+                error: 'Application name is required',
+            });
+        }
+
+        // Check if the application exists
+        const queryCheck = `
+            SELECT * FROM applications WHERE name = $1 AND user_id = $2;
+        `;
+        const valuesCheck = [applicationName, userId];
+        const resultCheck = await pool.query(queryCheck, valuesCheck);
+
+        if (resultCheck.rows.length === 0) {
+            return res.status(404).json({
+                success: false,
+                error: 'Application not found or you do not have permission to delete this application',
+            });
+        }
+
+        // Delete the application from the database
+        const queryDelete = `
+            DELETE FROM applications WHERE name = $1 AND user_id = $2 RETURNING *;
+        `;
+        const valuesDelete = [applicationName, userId];
+        const resultDelete = await pool.query(queryDelete, valuesDelete);
+
+        // Check if the application was successfully deleted
+        const deletedApplication = resultDelete.rows[0];
+        if (!deletedApplication) {
+            return res.status(500).json({
+                success: false,
+                error: 'Failed to delete application',
+            });
+        }
+
+        // Return success message
+        res.status(200).json({
+            success: true,
+            message: 'Application deleted successfully',
+            application: {
+                name: deletedApplication.name,
+                organisation: deletedApplication.organisation,
+            },
+        });
+    } catch (error) {
+        console.error('Error deleting application:', error);
         res.status(500).json({
             success: false,
             error: 'Internal Server Error',
@@ -645,6 +770,28 @@ app.get("/user-dashboard", authenticateAndAuthorize(['owner', 'admin', 'user']),
     } catch (error) {
         console.error('Error fetching users:', error);
         res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+app.delete('/delete-dictionary/:dictName', authenticateAndAuthorize(['admin', 'owner']), async (req, res) => {
+    const { dictName } = req.params;
+
+    try {
+        // Query to delete the dictionary from the database
+        const result = await pool.query('DELETE FROM dictionaries WHERE name = $1 RETURNING *', [dictName]);
+
+        // Check if the dictionary was found and deleted
+        if (result.rowCount === 0) {
+            return res.status(404).json({ success: false, error: 'Dictionary not found' });
+        }
+
+        res.status(200).json({
+            success: true,
+            message: 'Dictionary deleted successfully',
+        });
+    } catch (error) {
+        console.error('Error deleting dictionary:', error);
+        res.status(500).json({ success: false, error: 'Internal server error' });
     }
 });
 

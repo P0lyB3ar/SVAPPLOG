@@ -4,7 +4,6 @@ import {
   Typography,
   Button,
   TextField,
-  Autocomplete,
   IconButton,
   Tooltip,
   Avatar,
@@ -91,19 +90,11 @@ const overlineStyle = {
   },
 };
 
-const StyledAutocomplete = styled(Autocomplete)(() => ({
-  width: "80%",
-}));
 
 const OrganisationsPage: React.FC = () => {
   const [organisationName, setOrganisationName] = useState("");
-  const [applicationName, setApplicationName] = useState("");
-  const [dictionaryName, setDictionaryName] = useState("");
-  const [userName, setUserName] = useState("");
   const [organisations, setOrganisations] = useState<string[]>([]);
-  const [applications, setApplications] = useState<string[]>([]);
-  const [dictionaries, setDictionaries] = useState<string[]>([]);
-  const [users, setUsers] = useState<string[]>([]);
+  const [loading, setLoading] = useState(false);
 
   // Fetch organisations
   useEffect(() => {
@@ -113,6 +104,8 @@ const OrganisationsPage: React.FC = () => {
           headers: {
             Authorization: `Bearer ${sessionStorage.getItem("jwtToken")}`,
           },
+          method: "GET",
+          credentials: "include",
         });
         const data = await response.json();
         setOrganisations(data.organisations || []);
@@ -123,37 +116,10 @@ const OrganisationsPage: React.FC = () => {
     fetchOrganisations();
   }, []);
 
-  // Fetch suggestions for applications, dictionaries, and users
-  const fetchSuggestions = async (
-    endpoint: string,
-    setter: React.Dispatch<React.SetStateAction<string[]>>
-  ) => {
-    try {
-      const response = await fetch(endpoint, {
-        headers: {
-          Authorization: `Bearer ${sessionStorage.getItem("jwtToken")}`,
-        },
-      });
-      const data = await response.json();
-      setter(data.items || []); // Adjust based on the API response structure
-    } catch (error) {
-      console.error(`Failed to fetch from ${endpoint}`, error);
-    }
-  };
-
-  useEffect(() => {
-    fetchSuggestions("http://localhost:8000/list-application", setApplications);
-    fetchSuggestions("http://localhost:8000/list-dictionary", setDictionaries);
-    fetchSuggestions("http://localhost:8000/user-dashboard", setUsers);
-  }, []);
-
   const handleCreateOrganisation = async () => {
     try {
       const payload = {
         organisationName,
-        applicationName,
-        dictionaryName,
-        userName,
       };
 
       const response = await fetch("http://localhost:8000/create-organisation", {
@@ -162,6 +128,7 @@ const OrganisationsPage: React.FC = () => {
           "Content-Type": "application/json",
           Authorization: `Bearer ${sessionStorage.getItem("jwtToken")}`,
         },
+        credentials: "include",
         body: JSON.stringify(payload),
       });
 
@@ -169,9 +136,6 @@ const OrganisationsPage: React.FC = () => {
         const data = await response.json();
         setOrganisations((prev) => [...prev, data.organisationName]);
         setOrganisationName("");
-        setApplicationName("");
-        setDictionaryName("");
-        setUserName("");
         alert("Organisation created successfully!");
       } else {
         console.error("Failed to create organisation");
@@ -184,12 +148,14 @@ const OrganisationsPage: React.FC = () => {
   };
 
   const handleDeleteOrganisation = async (orgName: string) => {
+    setLoading(true); // Set loading to true while deleting
     try {
-      const response = await fetch(`http://localhost:8000//delete-organisation/${orgName}`, {
+      const response = await fetch(`http://localhost:8000/delete-organisation/${orgName}`, {
         method: "DELETE",
         headers: {
           Authorization: `Bearer ${sessionStorage.getItem("jwtToken")}`,
         },
+        credentials: "include",
       });
       if (response.ok) {
         setOrganisations((prev) =>
@@ -197,9 +163,13 @@ const OrganisationsPage: React.FC = () => {
         );
       } else {
         console.error("Failed to delete organisation");
+        alert("Failed to delete organisation.");
       }
     } catch (error) {
       console.error(error);
+      alert("An error occurred while deleting the organisation.");
+    } finally {
+      setLoading(false); // Set loading to false once operation is complete
     }
   };
 
@@ -216,51 +186,6 @@ const OrganisationsPage: React.FC = () => {
           value={organisationName}
           onChange={(e) => setOrganisationName(e.target.value)}
           sx={{ ...overlineStyle, marginTop: "20px", width: "80%" }}
-        />
-        <StyledAutocomplete
-          freeSolo
-          options={applications}
-          value={applicationName}
-          onInputChange={(e, newValue) => setApplicationName(newValue)}
-          renderInput={(params) => (
-            <TextField
-              {...params}
-              label="Add Application (optional)"
-              variant="outlined"
-              fullWidth
-              sx={{ ...overlineStyle, marginTop: "20px", width: "80%" }}
-            />
-          )}
-        />
-        <StyledAutocomplete
-          freeSolo
-          options={dictionaries}
-          value={dictionaryName}
-          onInputChange={(e, newValue) => setDictionaryName(newValue)}
-          renderInput={(params) => (
-            <TextField
-              {...params}
-              label="Select Dictionary"
-              variant="outlined"
-              fullWidth
-              sx={{ ...overlineStyle, marginTop: "20px", width: "80%" }}
-            />
-          )}
-        />
-        <StyledAutocomplete
-          freeSolo
-          options={users}
-          value={userName}
-          onInputChange={(e, newValue) => setUserName(newValue)}
-          renderInput={(params) => (
-            <TextField
-              {...params}
-              label="Select User"
-              variant="outlined"
-              fullWidth
-              sx={{ ...overlineStyle, marginTop: "20px", width: "80%" }}
-            />
-          )}
         />
         <Button
           variant="contained"
@@ -283,8 +208,11 @@ const OrganisationsPage: React.FC = () => {
                 key={index}
                 secondaryAction={
                   <Tooltip title="Delete">
-                    <IconButton onClick={() => handleDeleteOrganisation(org)}>
-                      <DeleteIcon sx={{ color: "white" }} />
+                    <IconButton
+                      onClick={() => handleDeleteOrganisation(org)}
+                      disabled={loading} // Disable button while deleting
+                    >
+                      <DeleteIcon sx={{ color: "red" }} />
                     </IconButton>
                   </Tooltip>
                 }

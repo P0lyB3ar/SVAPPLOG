@@ -50,7 +50,7 @@ const DictionaryEdit: React.FC = () => {
   useEffect(() => {
     const fetchDictionary = async () => {
       try {
-        const response = await fetch(`https://svapplog.onrender.com/dictionary/${name}`);
+        const response = await fetch(`http://localhost:8000/dictionary/${name}`);
         if (!response.ok) {
           const errorData = await response.json();
           setError(errorData.error || "Failed to fetch dictionary");
@@ -98,6 +98,7 @@ const DictionaryEdit: React.FC = () => {
     try {
       const response = await fetch(`http://localhost:8000/update-dictionary`, {
         method: "POST",
+        credentials: "include",
         headers: {
           "Content-Type": "application/json",
         },
@@ -124,15 +125,18 @@ const DictionaryEdit: React.FC = () => {
   };
 
   // Handle delete function
-  const handleDelete = async (index: number) => {
-    const key = Object.keys(dictionaryData)[index];
+  const handleDelete = async (index: number, key: string) => {
     const newDictionaryData = { ...dictionaryData };
-    const deletedItem = newDictionaryData[key].splice(index, 1); // Delete the item
+
+    // Optimistically update the UI by removing the item from the list
+    const deletedItem = newDictionaryData[key].splice(index, 1); 
+    setDictionaryData(newDictionaryData);
     setIsDeleting(true);
 
     try {
       const response = await fetch(`http://localhost:8000/update-dictionary`, {
         method: "POST",
+        credentials: "include",
         headers: {
           "Content-Type": "application/json",
         },
@@ -145,6 +149,7 @@ const DictionaryEdit: React.FC = () => {
       if (!response.ok) {
         const errorData = await response.json();
         alert(errorData.error || "Failed to delete the item");
+        
         // Revert the UI update if the request fails
         newDictionaryData[key].splice(index, 0, deletedItem[0]);
         setDictionaryData(newDictionaryData);
@@ -152,6 +157,10 @@ const DictionaryEdit: React.FC = () => {
     } catch (error) {
       console.error("Error deleting item:", error);
       alert("An error occurred while deleting the item");
+      
+      // Revert the UI update if the request fails
+      newDictionaryData[key].splice(index, 0, deletedItem[0]);
+      setDictionaryData(newDictionaryData);
     } finally {
       setIsDeleting(false);
     }
@@ -211,7 +220,7 @@ const DictionaryEdit: React.FC = () => {
                             <EditIcon />
                           </IconButton>
                         )}
-                        <IconButton onClick={() => handleDelete(itemIndex)} sx={{ fontSize: 50 }} disabled={isDeleting}>
+                        <IconButton onClick={() => handleDelete(itemIndex, key)} sx={{ fontSize: 50 }} disabled={isDeleting}>
                           <DeleteIcon />
                         </IconButton>
                       </Box>
