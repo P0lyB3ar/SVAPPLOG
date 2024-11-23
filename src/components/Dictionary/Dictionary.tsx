@@ -12,12 +12,12 @@ import DeleteIcon from "@mui/icons-material/Delete";
 import { Button, TextField } from "@mui/material";
 import Tooltip from "@mui/material/Tooltip";
 
-// Define the type for the dictionary items
+
 interface DictionaryItem {
   name: string;
+  data: object;
 }
 
-// Define the props interface for MainDictionary
 interface MainDictionaryProps {
   dictionaries: DictionaryItem[];
 }
@@ -124,25 +124,17 @@ const MainDictionary: React.FC<MainDictionaryProps> = () => {
     null
   );
   const [allDictionaries, setAllDictionaries] = useState<DictionaryItem[]>([]);
-  const [error, setError] = useState<string | null>(null); // Error state
+  const [error, setError] = useState<string | null>(null);
 
-  // Fetch dictionaries from the backend on initial load (GET request)
   useEffect(() => {
     const fetchDictionaries = async () => {
       try {
-        const response = await fetch(
-          "http://localhost:8000/list-dictionaries"
-        );
+        const response = await fetch("http://localhost:8000/list-dictionaries");
         if (response.ok) {
           const data = await response.json();
-          console.log("Fetched data:", data);
           if (data && Array.isArray(data.dictionaries)) {
             setAllDictionaries(data.dictionaries);
-          } else {
-            console.error("Unexpected data format:", data);
           }
-        } else {
-          console.error("Error fetching dictionaries:", response.status);
         }
       } catch (error) {
         console.error("Error fetching data:", error);
@@ -169,47 +161,39 @@ const MainDictionary: React.FC<MainDictionaryProps> = () => {
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
-    // Prepare the data object without the dictionary_id
-    const data = actions.reduce<{ [key: string]: string[] }>((acc, action) => {
-      acc[action] = [action];
-      return acc;
-    }, {});
 
     const newDictionary = {
       name: dictionaryName,
-      data: data,
+      actions: actions.filter((action) => action.trim() !== "") // Filter out empty actions
     };
 
+    if (newDictionary.actions.length === 0) {
+      setError("At least one action is required");
+      return;
+    }
+
     try {
-      const response = await fetch(
-        "http://localhost:8000/create-dictionary",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(newDictionary),
-        }
-      );
+      const response = await fetch("http://localhost:8000/create-dictionary", {
+        method: "POST",
+        credentials: "include",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(newDictionary),
+      });
 
       if (response.ok) {
-        const data = await response.json();
-        console.log("Dictionary created:", data);
-        // Once the backend returns the new dictionary with dictionary_id, update state
-        setAllDictionaries((prev) => [...prev, data]);
-        setError(null); // Clear error on success
+        const result = await response.json();
+        setAllDictionaries((prev) => [...prev, result]);
+        setDictionaryName("");
+        setActions([""]);
+        setError(null);
       } else {
-        console.error("Error creating dictionary:", response.status);
         setError("Failed to create dictionary");
-
-        // Clear the error after 2 seconds
         setTimeout(() => setError(null), 3000);
       }
     } catch (error) {
-      console.error("Error sending data:", error);
       setError("An error occurred while creating the dictionary");
-
-      // Clear the error after 2 seconds
       setTimeout(() => setError(null), 3000);
     }
   };
@@ -225,25 +209,21 @@ const MainDictionary: React.FC<MainDictionaryProps> = () => {
   const handleDeleteDictionary = async (dictName: string) => {
     try {
       const response = await fetch(
-        `http://localhost:8000/delete-dictionary/${dictName}`, // Adjust the URL to match your API
+        `http://localhost:8000/delete-dictionary/${dictName}`,
         {
           method: "DELETE",
         }
       );
-  
+
       if (response.ok) {
-        // Remove the dictionary from the state if delete is successful
         setAllDictionaries((prevDictionaries) =>
           prevDictionaries.filter((dict) => dict.name !== dictName)
         );
-        console.log(`Dictionary ${dictName} deleted successfully`);
-      } else {
-        console.error("Error deleting dictionary:", response.status);
       }
     } catch (error) {
       console.error("Error deleting dictionary:", error);
     }
-  };  
+  };
 
   return (
     <PageWrapper>
@@ -284,7 +264,7 @@ const MainDictionary: React.FC<MainDictionaryProps> = () => {
                     padding: "2px 10px",
                     minWidth: "auto",
                     fontSize: "96%",
-                    height: "20%  ",
+                    height: "20%",
                     marginTop: "10px",
                   }}
                 >
@@ -313,7 +293,11 @@ const MainDictionary: React.FC<MainDictionaryProps> = () => {
               Add Action
             </Button>
             <Button
-              sx={{ padding: "2px 10px", minWidth: "auto", fontSize: "96%", }}
+              sx={{
+                padding: "2px 10px",
+                minWidth: "auto",
+                fontSize: "96%",
+              }}
               variant="contained"
               disabled={!dictionaryName}
               type="submit"
@@ -330,58 +314,64 @@ const MainDictionary: React.FC<MainDictionaryProps> = () => {
         </Typography>
         <ListContainer>
           <List>
-            {allDictionaries.map((dict, index) => (
+            {allDictionaries.map((dictionary) => (
               <StyledListItem
-                key={index}
-                selected={selectedDictionary === dict.name}
-                onClick={() =>
-                  selectedDictionary === dict.name
-                    ? handleDeselectDictionary()
-                    : handleDictionarySelect(dict.name)
-                }
-                secondaryAction={
-                  <Tooltip title="Delete">
-                    <IconButton
-                      onClick={() => handleDeleteDictionary(dict.name)}
-                    >
-                      <DeleteIcon
-                        sx={{ color: "white", height: "40px", width: "40px" }}
-                      />
-                    </IconButton>
-                  </Tooltip>
-                }
+                key={dictionary.id}
+                sx={{ backgroundColor: "#1e232b" }}
               >
                 <ListItemAvatar>
-                  <Avatar
-                    sx={{
-                      backgroundColor: "rgb(212, 244, 255)",
-                      height: "50px",
-                      width: "50px",
-                      marginRight: "15px",
-                    }}
-                  >
-                    <FolderIcon
-                      sx={{ height: "35px", width: "35px", color: "grey" }}
-                    />
+                  <Avatar>
+                    <FolderIcon />
                   </Avatar>
                 </ListItemAvatar>
                 <ListItemText
-                  primary={dict.name}
-                  primaryTypographyProps={{ ...textStyle, fontSize: "1.3rem" }}
+                  primary={dictionary.name}
+                  secondary={
+                    <Typography
+                      sx={{
+                        color: "white",
+                        fontSize: "0.9rem",
+                        fontWeight: "normal",
+                      }}
+                    >
+                      {Object.keys(dictionary.data).join(", ")}
+                    </Typography>
+                  }
                 />
+                <Tooltip title="Delete Dictionary">
+                  <IconButton
+                    onClick={() => handleDeleteDictionary(dictionary.name)}
+                    sx={{
+                      color: "#d32f2f",
+                      padding: "0px 5px",
+                      height: "100%",
+                    }}
+                  >
+                    <DeleteIcon />
+                  </IconButton>
+                </Tooltip>
+                <Tooltip title="View Dictionary">
+                  <IconButton
+                    onClick={() =>
+                      selectedDictionary === dictionary.name
+                        ? handleDeselectDictionary()
+                        : handleDictionarySelect(dictionary.name)
+                    }
+                    sx={{
+                      color: "#1db954",
+                      padding: "0px 5px",
+                      height: "100%",
+                    }}
+                  >
+                    {selectedDictionary === dictionary.name
+                      ? "Deselect"
+                      : "View"}
+                  </IconButton>
+                </Tooltip>
               </StyledListItem>
             ))}
           </List>
         </ListContainer>
-        {selectedDictionary && (
-          <Button
-            href={`/editdictionary/${selectedDictionary}`}
-            variant="contained"
-            size="large"
-          >
-            Edit Dictionary
-          </Button>
-        )}
       </Container>
     </PageWrapper>
   );

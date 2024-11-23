@@ -11,10 +11,12 @@ import FolderIcon from "@mui/icons-material/Folder";
 import DeleteIcon from "@mui/icons-material/Delete";
 import { Button, TextField } from "@mui/material";
 import Tooltip from "@mui/material/Tooltip";
+import Cookies from "js-cookie";
 
 // Define the type for the dictionary items
 interface DictionaryItem {
   name: string;
+  data: { [key: number]: string };
 }
 
 // Define the props interface for MainDictionary
@@ -126,12 +128,19 @@ const MainDictionary: React.FC<MainDictionaryProps> = () => {
   const [allDictionaries, setAllDictionaries] = useState<DictionaryItem[]>([]);
   const [error, setError] = useState<string | null>(null); // Error state
 
+  const jwtToken = Cookies.get("jwt"); // Get JWT token from the cookies
+
   // Fetch dictionaries from the backend on initial load (GET request)
   useEffect(() => {
     const fetchDictionaries = async () => {
       try {
         const response = await fetch(
-          "http://localhost:8000/list-dictionaries"
+          "http://localhost:8000/list-dictionaries", 
+          {
+            headers: {
+              "Authorization": `Bearer ${jwtToken}`, // Include JWT token in the header
+            },
+          }
         );
         if (response.ok) {
           const data = await response.json();
@@ -149,7 +158,7 @@ const MainDictionary: React.FC<MainDictionaryProps> = () => {
       }
     };
     fetchDictionaries();
-  }, []);
+  }, [jwtToken]);
 
   const handleActionChange = (index: number, value: string) => {
     const newActions = [...actions];
@@ -169,11 +178,13 @@ const MainDictionary: React.FC<MainDictionaryProps> = () => {
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
-    // Prepare the data object without the dictionary_id
-    const data = actions.reduce<{ [key: string]: string[] }>((acc, action) => {
-      acc[action] = [action];
-      return acc;
-    }, {});
+    // Prepare the data object with numeric keys (0, 1, 2, ...)
+    const data: { [key: number]: string } = {};
+    actions.forEach((action, index) => {
+      if (action.trim()) {
+        data[index] = action;  // Use the index as the key
+      }
+    });
 
     const newDictionary = {
       name: dictionaryName,
@@ -182,34 +193,41 @@ const MainDictionary: React.FC<MainDictionaryProps> = () => {
 
     try {
       const response = await fetch(
-        "http://localhost:8000/create-dictionary",
+        "http://localhost:8000/create-dictionary", 
         {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
+            "Authorization": `Bearer ${jwtToken}`, // Add JWT token to the header
           },
-          body: JSON.stringify(newDictionary),
+          body: JSON.stringify(newDictionary), // Send the new dictionary data
         }
       );
 
       if (response.ok) {
-        const data = await response.json();
-        console.log("Dictionary created:", data);
-        // Once the backend returns the new dictionary with dictionary_id, update state
-        setAllDictionaries((prev) => [...prev, data]);
-        setError(null); // Clear error on success
-      } else {
-        console.error("Error creating dictionary:", response.status);
-        setError("Failed to create dictionary");
+        const createdDictionary = await response.json();
+        console.log("Dictionary created:", createdDictionary);
 
-        // Clear the error after 2 seconds
-        setTimeout(() => setError(null), 3000);
+        // Add the new dictionary to the state
+        setAllDictionaries((prev) => [...prev, createdDictionary]);
+
+        // Clear form inputs
+        setDictionaryName("");
+        setActions([""]);
+        setError(null);
+      } else if (response.status === 409) {
+        setError("Dictionary name already exists");
+      } else {
+        setError("Failed to create dictionary");
       }
+
+      // Clear the error after 3 seconds
+      setTimeout(() => setError(null), 3000);
     } catch (error) {
-      console.error("Error sending data:", error);
+      console.error("Error creating dictionary:", error);
       setError("An error occurred while creating the dictionary");
 
-      // Clear the error after 2 seconds
+      // Clear the error after 3 seconds
       setTimeout(() => setError(null), 3000);
     }
   };
@@ -225,9 +243,12 @@ const MainDictionary: React.FC<MainDictionaryProps> = () => {
   const handleDeleteDictionary = async (dictName: string) => {
     try {
       const response = await fetch(
-        `http://localhost:8000/delete-dictionary/${dictName}`, // Adjust the URL to match your API
+        `http://localhost:8000/delete-dictionary/${dictName}`, 
         {
           method: "DELETE",
+          headers: {
+            "Authorization": `Bearer ${jwtToken}`, // Include JWT token for deletion
+          },
         }
       );
   
@@ -273,115 +294,70 @@ const MainDictionary: React.FC<MainDictionaryProps> = () => {
                   fullWidth
                   value={action}
                   onChange={(e) => handleActionChange(index, e.target.value)}
-                  required
-                  sx={{ ...overlineStyle, marginBottom: "10px", width: 500 }}
+                  sx={{ ...overlineStyle, width: 350 }}
                 />
-                <Button
-                  variant="contained"
-                  size="small"
-                  onClick={() => deleteActionField(index)}
-                  sx={{
-                    padding: "2px 10px",
-                    minWidth: "auto",
-                    fontSize: "1.2rem",
-                    height: "35px",
-                    marginTop: "10px",
-                  }}
-                >
-                  Delete Action
-                </Button>
+                {actions.length > 1 && (
+                  <Tooltip title="Delete">
+                    <IconButton
+                      color="error"
+                      onClick={() => deleteActionField(index)}
+                    >
+                      <DeleteIcon />
+                    </IconButton>
+                  </Tooltip>
+                )}
               </div>
             ))}
+            <Button onClick={addActionField} variant="contained">
+              Add Action
+            </Button>
           </ActionsContainer>
+
           {error && (
-            <Typography
-              sx={{ color: "red", fontSize: "1rem", marginTop: "5px" }}
-            >
+            <Typography sx={{ color: "red", fontSize: "1rem", marginTop: 2 }}>
               {error}
             </Typography>
           )}
+
           <Footer>
-            <Button
-              sx={{
-                padding: "2px 10px",
-                minWidth: "auto",
-                fontSize: "1.2rem",
-                marginTop: "",
-              }}
-              variant="contained"
-              onClick={addActionField}
-            >
-              Add Action
-            </Button>
-            <Button
-              sx={{ padding: "2px 10px", minWidth: "auto", fontSize: "1.2rem" }}
-              variant="contained"
-              type="submit"
-            >
-              Submit
+            <Button type="submit" variant="contained">
+              Create Dictionary
             </Button>
           </Footer>
         </form>
-      </Container>
 
-      <Container>
-        <Typography sx={{ ...textStyle, fontSize: "3rem" }}>
-          Dictionaries List
-        </Typography>
         <ListContainer>
+          <Typography sx={{ ...textStyle, fontSize: "2rem" }}>
+            All Dictionaries
+          </Typography>
           <List>
-            {allDictionaries.map((dict, index) => (
-              <StyledListItem
-                key={index}
-                selected={selectedDictionary === dict.name}
-                onClick={() =>
-                  selectedDictionary === dict.name
-                    ? handleDeselectDictionary()
-                    : handleDictionarySelect(dict.name)
-                }
-                secondaryAction={
-                  <Tooltip title="Delete">
-                    <IconButton
-                      onClick={() => handleDeleteDictionary(dict.name)}
-                    >
-                      <DeleteIcon
-                        sx={{ color: "white", height: "40px", width: "40px" }}
-                      />
-                    </IconButton>
-                  </Tooltip>
-                }
-              >
+            {allDictionaries.map((dict) => (
+              <StyledListItem key={dict.name}>
                 <ListItemAvatar>
-                  <Avatar
-                    sx={{
-                      backgroundColor: "rgb(212, 244, 255)",
-                      height: "50px",
-                      width: "50px",
-                      marginRight: "15px",
-                    }}
-                  >
-                    <FolderIcon
-                      sx={{ height: "35px", width: "35px", color: "grey" }}
-                    />
+                  <Avatar>
+                    <FolderIcon />
                   </Avatar>
                 </ListItemAvatar>
                 <ListItemText
                   primary={dict.name}
-                  primaryTypographyProps={{ ...textStyle, fontSize: "1.3rem" }}
+                  secondary={
+                    selectedDictionary === dict.name
+                      ? "Selected"
+                      : "Click to select"
+                  }
                 />
+                <Tooltip title="Delete">
+                  <IconButton
+                    color="error"
+                    onClick={() => handleDeleteDictionary(dict.name)}
+                  >
+                    <DeleteIcon />
+                  </IconButton>
+                </Tooltip>
               </StyledListItem>
             ))}
           </List>
         </ListContainer>
-        {selectedDictionary && (
-          <Button
-            href={`/editdictionary/${selectedDictionary}`}
-            variant="contained"
-            size="large"
-          >
-            Edit Dictionary
-          </Button>
-        )}
       </Container>
     </PageWrapper>
   );
