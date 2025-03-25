@@ -570,94 +570,50 @@ app.get('/list-applications', authenticateAndAuthorize(['user', 'admin', 'owner'
 
 
 app.post('/write', async (req, res) => {
-    const { name } = req.query; // Extract dictionary name from query parameters
     const inputData = req.body; // Extract log data from request body
 
-    if (!name) {
-        return res.status(400).json({ error: 'Dictionary name is required' });
+    if (!inputData || Object.keys(inputData).length === 0) {
+        return res.status(400).json({ error: 'Log data is required' });
     }
 
     try {
-        // Fetch dictionary details from the database
-        const dictResult = await pool.query('SELECT * FROM dictionaries WHERE name = $1', [name]);
-
-        if (dictResult.rowCount === 0) {
-            return res.status(404).json({ error: `Dictionary with name '${name}' not found` });
-        }
-
-        // Extract dictionary data fields
-        const dictData = dictResult.rows[0].data;
-        const dictFields = dictData[name]; // e.g., ["user", "path", "method", "ip", "timestamp"]
-
-        if (!Array.isArray(dictFields)) {
-            return res.status(400).json({ error: `Invalid dictionary format for '${name}'` });
-        }
-
-        // Validate input data contains all required fields
-        const missingFields = dictFields.filter((field) => !(field in inputData));
-        if (missingFields.length > 0) {
-            return res.status(400).json({ error: `Missing required fields: ${missingFields.join(', ')}` });
-        }
-
-        // Insert the log into the database
-        const logData = dictFields.reduce((acc, field) => {
-            acc[field] = inputData[field]; // Dynamically map each field from input
-            return acc;
-        }, {});
-
+        // Insert the entire log entry into the database
         await pool.query(
-            `INSERT INTO logs (dict_id, data) VALUES ($1, $2)`,
-            [dictResult.rows[0].id, JSON.stringify(logData)]
+            `INSERT INTO logs (log) VALUES ($1)`,
+            [JSON.stringify(inputData)]
         );
 
-        return res.status(201).json({ message: 'Log successfully saved', log: logData });
+        return res.status(201).json({ message: 'Log successfully saved', log: inputData });
     } catch (error) {
         console.error('Error writing log:', error);
         return res.status(500).json({ error: 'Internal Server Error' });
     }
 });
 
+
 // Read endpoint (accessible by all authenticated users)
 app.get('/read', authenticateAndAuthorize(['user', 'admin', 'owner']), async (req, res) => {
-    const logs = req.query.logs;
     const sort = req.query.sort;
-    const dictName = req.query.name;
-    const dictId = req.query.dict_id;
-
-    if (logs !== 'all') {
-        return res.status(400).json({ error: 'Invalid query parameter. Expected logs=all.' });
-    }
 
     try {
-        let queryParams = [];
         let query = 'SELECT * FROM logs';
+        let queryParams = [];
 
-        // Add filters dynamically based on provided parameters
-        if (dictId) {
-            query += ' WHERE dict_id = $1';
-            queryParams.push(dictId);
-        }
-
-        if (dictName) {
-            query += queryParams.length ? ' AND dict_name = $2' : ' WHERE dict_name = $1';
-            queryParams.push(dictName);
-        }
-
+        // Add sorting if requested
         if (sort) {
-            query += queryParams.length ? ' AND' : ' WHERE';
-            query += ` type = $${queryParams.length + 1}`;
+            query += ' ORDER BY log->>$1';
             queryParams.push(sort);
         }
 
-        const logsResult = await pool.query(query, queryParams);
+        const logsResult = await pool.query(query, queryParams.length ? queryParams : undefined);
 
-        // Return the filtered logs
         return res.status(200).json(logsResult.rows);
     } catch (error) {
         console.error('Error reading from database:', error);
         return res.status(500).json({ error: 'Internal Server Error' });
     }
 });
+
 
 
 // Create dictionary endpoint (requires 'admin' role)

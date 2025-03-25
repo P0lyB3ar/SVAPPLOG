@@ -1,121 +1,185 @@
-import { DataGrid } from '@mui/x-data-grid';
-import { SxProps } from '@mui/system';
-import React, { useState } from 'react';
+"use client"
+
+import { DataGrid, type GridColDef, GridLoadingOverlay } from "@mui/x-data-grid"
+import type { SxProps } from "@mui/system"
+import type React from "react"
+import { useMemo } from "react"
+import styled from "styled-components"
+import { Info } from "lucide-react"
+
+const ResultContainer = styled.div`
+  height: calc(100% - 16px);
+  width: 100%;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid #30363d;
+`
+
+const EmptyState = styled.div`
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: #8b949e;
+  padding: 32px;
+  text-align: center;
+`
 
 interface ResultProps {
-  rows: any[]; // The rows are passed from the parent component (Main)
+  rows: any[]
+  columns: string[] | null
+  loading?: boolean
 }
 
-const Result: React.FC<ResultProps> = ({ rows }) => {
-  // Local state to manage loading status
-  const [isLoading, setIsLoading] = useState(false);
+const Result: React.FC<ResultProps> = ({ rows, columns, loading = false }) => {
+  // Process rows to flatten the structure (spread `log` inside each row)
+  const processedRows = useMemo(
+    () =>
+      rows.map((row, index) => ({
+        id: row.log_id ?? `row-${index}`,
+        log_id: row.log_id,
+        ...row.log,
+      })),
+    [rows],
+  )
 
-  const columns = [
-    { field: 'id', headerName: 'User_ID', width: 150 },
-    { field: 'user', headerName: 'User', width: 330 },
-    { field: 'type', headerName: 'Action', width: 330 },
-    { field: 'timestamp', headerName: 'Time Stamp', width: 330 },
-    { field: 'path', headerName: 'Path', width: 304 },
-  ];
+  // Dynamically generate columns
+  const gridColumns = useMemo(() => {
+    const baseColumns: GridColDef[] = [
+      {
+        field: "log_id",
+        headerName: "Log ID",
+        width: 100,
+        headerAlign: "left",
+        align: "left",
+      },
+    ]
 
-  // Process the rows to flatten nested "data.user"
-  const processedRows = rows.map(row => {
-    console.log("Raw timestamp:", row.timestamp);
-    return {
-      id: row.id,
-      user: row.data?.user || 'N/A', // Extract user from data or default to 'N/A'
-      type: row.type,
-      timestamp: row.timestamp
-        ? (() => {
-            const date = new Date(row.timestamp);
-            return isNaN(date.getTime())
-              ? 'Invalid Timestamp'
-              : date.toLocaleString('en-US', { timeZone: 'UTC' }); // Format timestamp
-          })()
-        : 'Timestamp Missing', // Handle missing timestamps
-      path: row.path || 'N/A', // Default to 'N/A' if path is null
-    };
-  });
+    if (columns && columns.length > 0) {
+      // Generate columns based on dictionary
+      const additionalColumns = columns
+        .filter((col) => col !== "log_id") // Prevent duplicates
+        .map((col) => ({
+          field: col,
+          headerName: col.charAt(0).toUpperCase() + col.slice(1),
+          width: 200,
+          flex: 1,
+          headerAlign: "left" as const,
+          align: "left" as const,
+        }))
+      return [...baseColumns, ...additionalColumns]
+    }
 
+    // Dynamic mode - derive from first row if available
+    if (processedRows.length > 0) {
+      const firstRow = processedRows[0]
+      const dynamicColumns = Object.keys(firstRow)
+        .filter((key) => key !== "id" && key !== "log_id") // Exclude system fields
+        .map((key) => ({
+          field: key,
+          headerName: key.charAt(0).toUpperCase() + key.slice(1),
+          width: 200,
+          flex: 1,
+          headerAlign: "left" as const,
+          align: "left" as const,
+        }))
+      return [...baseColumns, ...dynamicColumns]
+    }
+
+    return baseColumns
+  }, [columns, processedRows])
+
+  // Styles for DataGrid
   const sx: SxProps = {
-    '& .MuiDataGrid-root': {
-      fontSize: '16px',
-      height: '50%',
+    border: "none",
+    "& .MuiDataGrid-root": {
+      fontSize: "14px",
+      height: "100%",
+      borderRadius: "8px",
     },
-    '& .MuiIconButton-root': {
-      color: '#fff',
+    "& .MuiIconButton-root, & .MuiSvgIcon-root": {
+      color: "#8b949e",
     },
-    '& .MuiDataGrid-iconSeparator': {
-      color: '#fff',
+    "& .MuiDataGrid-columnHeader": {
+      backgroundColor: "#0D1117",
+      color: "#fff",
+      padding: "0 16px",
+      height: "48px",
     },
-    '& .MuiDataGrid-columnHeader': {
-      backgroundColor: '#0D1117',
-      color: '#fff',
+    "& .MuiDataGrid-columnHeaderTitle": {
+      fontWeight: "600",
+      fontSize: "14px",
     },
-    '& .MuiDataGrid-columnHeaderTitle': {
-      fontWeight: 'bold',
-      fontSize: '16px',
+    "& .MuiDataGrid-columnSeparator": {
+      display: "none",
     },
-    '& .MuiDataGrid-scrollbar':{
-      overflowX: "hidden",
+    "& .MuiDataGrid-cell": {
+      color: "#c9d1d9",
+      borderBottom: "1px solid #21262d",
+      backgroundColor: "#0d1117",
+      padding: "0 16px",
+      fontSize: "14px",
     },
-    '& .MuiSvgIcon-root': {
-      color: '#fff',
+    "& .MuiDataGrid-row": {
+      "&:hover": {
+        backgroundColor: "#161b22",
+      },
+      "&.Mui-selected": {
+        backgroundColor: "#1f6feb33",
+        "&:hover": {
+          backgroundColor: "#1f6feb44",
+        },
+      },
     },
-    '& .MuiTablePagination-displayedRows': {
-      color: '#fff',
+    "& .MuiDataGrid-footerContainer": {
+      backgroundColor: "#0D1117",
+      borderTop: "1px solid #30363d",
     },
-    '& .MuiDataGrid-filler': {
-      backgroundColor: '#0D1117',
+    "& .MuiTablePagination-root": {
+      color: "#c9d1d9",
     },
-    '& .MuiDataGrid-cell': {
-      color: 'white',
-      borderBottom: '1px solid #30363d',
-      backgroundColor: '#0d1117',
+    "& .MuiTablePagination-selectIcon": {
+      color: "#8b949e",
     },
-    '& .MuiDataGrid-footerContainer': {
-      backgroundColor: '#151b23',
+    "& .MuiDataGrid-virtualScroller": {
+      backgroundColor: "#0d1117",
     },
-    '& .MuiDataGrid-toolbar': {
-      backgroundColor: '#e9ecef',
+    "& .MuiDataGrid-overlay": {
+      backgroundColor: "#0d1117",
+      color: "#8b949e",
     },
-    '& .MuiDataGrid-row': {
-      backgroundColor: '#C6F2F4',
-    },
-    '& .MuiDataGrid-row.Mui-selected': {
-      backgroundColor: '#ffffff !important',
-      color: '#0d1117 !important',
-    },
-    '& .MuiDataGrid-row.Mui-selected:hover': {
-      backgroundColor: '#f0f0f0 !important',
-    },
-    '& .MuiCheckbox-root.Mui-checked': {
-      color: '#ffffff !important',
-    },
-    '& .MuiDataGrid-scrollbarFiller': {
-      background: '#0D1117',
-    },
-    '& .MuiDataGrid-overlay':{
-      color:'white',
-      background:'#0D1117',
-
-    },
-  };
+  }
 
   return (
-    <div style={{ height: '500px', width: '100%' }}>
-      <DataGrid
-        sx={sx}
-        rows={processedRows}
-        columns={columns}
-        hideFooterPagination={isLoading}
-        pageSizeOptions={[5, 10, 25]}
-        checkboxSelection
-        loading={isLoading}
-        disableRowSelectionOnClick={false}
-      />
-    </div>
-  );
-};
+    <ResultContainer>
+      {rows.length === 0 && !loading ? (
+        <EmptyState>
+          <Info size={48} style={{ marginBottom: "16px", opacity: 0.6 }} />
+          <h3 style={{ margin: "0 0 8px 0", color: "#c9d1d9" }}>No data to display</h3>
+          <p style={{ margin: 0 }}>Select a dictionary and click "Fetch Data" to load information</p>
+        </EmptyState>
+      ) : (
+        <DataGrid
+          sx={sx}
+          rows={processedRows}
+          columns={gridColumns}
+          pageSizeOptions={[10, 25, 50, 100]}
+          initialState={{
+            pagination: {
+              paginationModel: { pageSize: 10 },
+            },
+          }}
+          disableRowSelectionOnClick={true}
+          loading={loading}
+          components={{
+            LoadingOverlay: GridLoadingOverlay,
+          }}
+        />
+      )}
+    </ResultContainer>
+  )
+}
 
-export default Result;
+export default Result
+
