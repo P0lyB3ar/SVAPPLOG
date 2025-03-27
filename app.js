@@ -418,23 +418,23 @@ app.post('/create-application', authenticateAndAuthorize(['user', 'admin', 'owne
         const userId = req.user.user_id;
 
         // Validate required fields
-        if (!applicationName || !organisationName) {
+        if (!applicationName) {
             return res.status(400).json({
                 success: false,
-                error: 'Application name and organisation name are required',
+                error: 'Application name is required',
             });
         }
 
         // Generate a secure application secret
         const applicationSecret = crypto.randomBytes(32).toString('hex');
 
-        // Insert new application into the database
+        // Insert new application into the database, organisationName is optional
         const query = `
             INSERT INTO applications (name, secret, organisation, user_id)
             VALUES ($1, $2, $3, $4)
             RETURNING *;
         `;
-        const values = [applicationName, applicationSecret, organisationName, userId];
+        const values = [applicationName, applicationSecret, organisationName || null, userId];
 
         const result = await pool.query(query, values);
 
@@ -447,25 +447,19 @@ app.post('/create-application', authenticateAndAuthorize(['user', 'admin', 'owne
             });
         }
 
-        // Return the created application details
         res.status(201).json({
             success: true,
-            message: 'Application created successfully',
-            application: {
-                name: createdApplication.name,
-                secret: createdApplication.secret,
-                organisation: createdApplication.organisation,
-                user_id: createdApplication.user_id,
-            },
+            application: createdApplication,
         });
     } catch (error) {
         console.error('Error creating application:', error);
         res.status(500).json({
             success: false,
-            error: 'Internal Server Error',
+            error: 'Internal server error',
         });
     }
 });
+
 
 
 app.delete('/delete-application/:applicationName', authenticateAndAuthorize(['user', 'admin', 'owner']), async (req, res) => {
@@ -538,9 +532,9 @@ app.get('/list-applications', authenticateAndAuthorize(['user', 'admin', 'owner'
     console.log('User ID from JWT:', userId);
 
     try {
-        // Query to fetch all applications associated with the user
+        // Query to fetch all applications associated with the user, including all relevant columns
         const applicationQuery = `
-            SELECT name
+            SELECT application_id, name, secret, organisation, user_id
             FROM applications
             WHERE user_id = $1
         `;
@@ -555,8 +549,14 @@ app.get('/list-applications', authenticateAndAuthorize(['user', 'admin', 'owner'
             return res.status(404).json({ message: 'No applications found for the user' });
         }
 
-        // Corrected line: Extract application names using the 'name' column
-        const applications = result.rows.map(row => row.name);
+        // Map the result to include all columns in the response
+        const applications = result.rows.map(row => ({
+            application_id: row.application_id,
+            name: row.name,
+            secret: row.secret,
+            organisation: row.organisation,
+            user_id: row.user_id
+        }));
 
         res.status(200).json({
             message: 'Applications retrieved successfully',
@@ -570,20 +570,44 @@ app.get('/list-applications', authenticateAndAuthorize(['user', 'admin', 'owner'
 
 
 app.post('/write', async (req, res) => {
-    const inputData = req.body; // Extract log data from request body
+    const { applicationSecret, ...inputData } = req.body;
+
+    if (!applicationSecret) {
+        return res.status(400).json({ error: 'Application secret is required' });
+    }
 
     if (!inputData || Object.keys(inputData).length === 0) {
         return res.status(400).json({ error: 'Log data is required' });
     }
 
     try {
-        // Insert the entire log entry into the database
-        await pool.query(
-            `INSERT INTO logs (log) VALUES ($1)`,
-            [JSON.stringify(inputData)]
+        // Verify application secret and get application_id
+        const result = await pool.query(
+            `SELECT application_id FROM applications WHERE secret = $1`,
+            [applicationSecret]
         );
 
-        return res.status(201).json({ message: 'Log successfully saved', log: inputData });
+        if (result.rows.length === 0) {
+            return res.status(403).json({ error: 'Invalid application secret' });
+        }
+
+        const applicationId = result.rows[0].application_id;
+
+        // Get next log number for this application
+        const countResult = await pool.query(
+            `SELECT COUNT(*) FROM logs WHERE application_id = $1`,
+            [applicationId]
+        );
+
+        const nextLogNumber = parseInt(countResult.rows[0].count) + 1;
+
+        // Insert the log entry with custom log number
+        await pool.query(
+            `INSERT INTO logs (application_id, log_number, log) VALUES ($1, $2, $3)`,
+            [applicationId, nextLogNumber, JSON.stringify(inputData)]
+        );
+
+        return res.status(201).json({ message: 'Log successfully saved', logNumber: nextLogNumber, log: inputData });
     } catch (error) {
         console.error('Error writing log:', error);
         return res.status(500).json({ error: 'Internal Server Error' });
@@ -592,20 +616,30 @@ app.post('/write', async (req, res) => {
 
 
 // Read endpoint (accessible by all authenticated users)
-app.get('/read', authenticateAndAuthorize(['user', 'admin', 'owner']), async (req, res) => {
-    const sort = req.query.sort;
+app.post('/read', async (req, res) => {
+    const { applicationSecret, sort } = req.body;
+
+    if (!applicationSecret) {
+        return res.status(400).json({ error: 'Application secret is required' });
+    }
 
     try {
-        let query = 'SELECT * FROM logs';
-        let queryParams = [];
+        // Verify application secret
+        const result = await pool.query(
+            `SELECT application_id FROM applications WHERE secret = $1`,
+            [applicationSecret]
+        );
 
-        // Add sorting if requested
-        if (sort) {
-            query += ' ORDER BY log->>$1';
-            queryParams.push(sort);
+        if (result.rows.length === 0) {
+            return res.status(403).json({ error: 'Invalid application secret' });
         }
 
-        const logsResult = await pool.query(query, queryParams.length ? queryParams : undefined);
+        const applicationId = result.rows[0].application_id;
+
+        let query = 'SELECT log_number, log FROM logs WHERE application_id = $1 ORDER BY log_number ASC';
+        let queryParams = [applicationId];
+
+        const logsResult = await pool.query(query, queryParams);
 
         return res.status(200).json(logsResult.rows);
     } catch (error) {
@@ -613,7 +647,6 @@ app.get('/read', authenticateAndAuthorize(['user', 'admin', 'owner']), async (re
         return res.status(500).json({ error: 'Internal Server Error' });
     }
 });
-
 
 
 // Create dictionary endpoint (requires 'admin' role)

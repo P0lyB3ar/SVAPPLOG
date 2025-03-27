@@ -86,12 +86,20 @@ const textStyle = {
   fontWeight: "bold",
 };
 
+interface Application {
+  application_id: number;
+  name: string;
+  secret: string;
+  organisation: string;
+  user_id: number;
+}
+
 const ApplicationsPage: React.FC = () => {
   const [applicationName, setApplicationName] = useState("");
   const [dictionaryName, setDictionaryName] = useState("");
   const [userName, setUserName] = useState("");
-  const [organisationName, setOrganisationName] = useState(""); // Added this state to track organisation name
-  const [applications, setApplications] = useState<string[]>([]);
+  const [organisationName, setOrganisationName] = useState("");
+  const [applications, setApplications] = useState<Application[]>([]);
   const [dictionaries, setDictionaries] = useState<string[]>([]);
   const [users, setUsers] = useState<string[]>([]);
 
@@ -100,7 +108,7 @@ const ApplicationsPage: React.FC = () => {
     try {
       const response = await fetch("http://localhost:8000/list-applications", {
         method: "GET",
-        credentials: "include", // Include cookies in the request
+        credentials: "include",
         headers: {
           "Content-Type": "application/json",
         },
@@ -118,7 +126,7 @@ const ApplicationsPage: React.FC = () => {
     try {
       const response = await fetch("http://localhost:8000/list-dictionaries", {
         method: "GET",
-        credentials: "include", // Include cookies in the request
+        credentials: "include",
         headers: {
           "Content-Type": "application/json",
         },
@@ -142,7 +150,7 @@ const ApplicationsPage: React.FC = () => {
     try {
       const response = await fetch("http://localhost:8000/user-dashboard", {
         method: "GET",
-        credentials: "include", // Include cookies in the request
+        credentials: "include",
         headers: {
           "Content-Type": "application/json",
         },
@@ -166,15 +174,15 @@ const ApplicationsPage: React.FC = () => {
     e.preventDefault();
 
     const payload = {
-      applicationName: applicationName || "",   // If applicationName is provided, use it, else use an empty string
-      organisationName: organisationName || "", // If organisationName is provided, use it, else use an empty string
+      applicationName: applicationName || "",
+      organisationName: organisationName || "",
     };
     
 
     try {
       const response = await fetch("http://localhost:8000/create-application", {
         method: "POST",
-        credentials: "include", // Include cookies in the request
+        credentials: "include",
         headers: {
           "Content-Type": "application/json",
         },
@@ -188,7 +196,7 @@ const ApplicationsPage: React.FC = () => {
       alert("Application created successfully!");
       setApplicationName("");
       setOrganisationName("");
-      fetchApplications(); // Refresh applications after successful creation
+      fetchApplications();
     } catch (error) {
       console.error("Error creating application:", error);
       alert(`Error creating application: ${error}`);
@@ -204,7 +212,7 @@ const ApplicationsPage: React.FC = () => {
 
       if (response.ok) {
         setApplications((prevApps) =>
-          prevApps.filter((app) => app !== appName)
+          prevApps.filter((app) => app.name !== appName)
         );
         console.log(`Application ${appName} deleted successfully`);
       } else {
@@ -258,19 +266,21 @@ const ApplicationsPage: React.FC = () => {
           Your Applications
         </Typography>
         <List>
-          {applications.map((app, index) => (
-            <StyledListItem key={index}>
+          {applications.map((app) => (
+            <StyledListItem key={app.application_id}>
               <ListItemAvatar>
                 <Avatar sx={{ backgroundColor: "#d4f4ff", height: 50, width: 50 }}>
                   <FolderIcon sx={{ color: "grey" }} />
                 </Avatar>
               </ListItemAvatar>
               <ListItemText
-                primary={app}
+                primary={app.name}
+                secondary={`Organization: ${app.organisation}`}
                 primaryTypographyProps={{ ...textStyle, fontSize: "1.3rem" }}
+                secondaryTypographyProps={{ color: "#ffffff" }}
               />
               <Tooltip title="Delete">
-                <IconButton onClick={() => handleDeleteApplication(app)}>
+                <IconButton onClick={() => handleDeleteApplication(app.name)}>
                   <DeleteIcon sx={{ color: "red", height: "40px", width: "40px" }} />
                 </IconButton>
               </Tooltip>

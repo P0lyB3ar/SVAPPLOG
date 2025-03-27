@@ -27,31 +27,27 @@ const EmptyState = styled.div`
 `
 
 interface ResultProps {
-  rows: Array<{
-    log_number: number
-    log: Record<string, any>
-  }>
+  rows: any[] | undefined // Explicitly set to undefined, in case it is not passed
   columns: string[] | null
   loading?: boolean
 }
 
-const Result: React.FC<ResultProps> = ({ rows, columns, loading = false }) => {
-  // Process rows to flatten the structure and include log_number
-  const processedRows = useMemo(
-    () =>
-      rows.map((row) => ({
-        id: row.log_number, // Use log_number as unique ID
-        log_number: row.log_number,
-        ...row.log, // Spread the log object properties
-      })),
-    [rows],
-  )
+const Result: React.FC<ResultProps> = ({ rows = [], columns, loading = false }) => {
+  // Process rows to flatten the structure (spread `log` inside each row)
+  const processedRows = useMemo(() => {
+    if (!rows || rows.length === 0) return []
+    return rows.map((row, index) => ({
+      id: row.log_id ?? `row-${index}`,
+      log_id: row.log_id,
+      ...row.log,
+    }))
+  }, [rows])
 
   // Dynamically generate columns
   const gridColumns = useMemo(() => {
     const baseColumns: GridColDef[] = [
       {
-        field: "log_number",
+        field: "log_id",
         headerName: "Log ID",
         width: 100,
         headerAlign: "left",
@@ -62,7 +58,7 @@ const Result: React.FC<ResultProps> = ({ rows, columns, loading = false }) => {
     if (columns && columns.length > 0) {
       // Generate columns based on dictionary
       const additionalColumns = columns
-        .filter((col) => col !== "log_number") // Prevent duplicates
+        .filter((col) => col !== "log_id") // Prevent duplicates
         .map((col) => ({
           field: col,
           headerName: col.charAt(0).toUpperCase() + col.slice(1),
@@ -78,7 +74,7 @@ const Result: React.FC<ResultProps> = ({ rows, columns, loading = false }) => {
     if (processedRows.length > 0) {
       const firstRow = processedRows[0]
       const dynamicColumns = Object.keys(firstRow)
-        .filter((key) => key !== "id" && key !== "log_number") // Exclude system fields
+        .filter((key) => key !== "id" && key !== "log_id") // Exclude system fields
         .map((key) => ({
           field: key,
           headerName: key.charAt(0).toUpperCase() + key.slice(1),

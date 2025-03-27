@@ -7,8 +7,9 @@ import ErrorContainer from "../ErrorContainer/ErrorContainer"
 import Button from "@mui/material/Button"
 import MenuItem from "@mui/material/MenuItem"
 import Select from "@mui/material/Select"
-import { Database, RefreshCw } from "lucide-react"
+import { Database, RefreshCw, ArrowLeft } from "lucide-react"
 import Result from "./Result"
+import ApplicationSelector from "./application-selector"
 
 const StyledMain = styled.div`
   background: #010409;
@@ -101,6 +102,20 @@ const StyledButton = styled(Button)`
   }
 `
 
+const BackButton = styled(Button)`
+  background-color: transparent !important;
+  color: #58a6ff !important;
+  text-transform: none !important;
+  font-weight: 600 !important;
+  padding: 8px 16px !important;
+  border: 1px solid #30363d !important;
+  margin-right: auto !important;
+  
+  &:hover {
+    background-color: rgba(88, 166, 255, 0.1) !important;
+  }
+`
+
 interface MainProps {
   children?: ReactNode
 }
@@ -115,56 +130,107 @@ interface Dictionary {
   columns: string[]
 }
 
+interface Application {
+  application_id: number
+  name: string
+  secret: string
+  organisation: string
+  user_id: number
+}
+
 const Main: React.FC<MainProps> = ({ children }) => {
   const [data, setData] = useState<DataItem[]>([])
   const [dictionaries, setDictionaries] = useState<Dictionary[]>([])
+  const [applications, setApplications] = useState<Application[]>([])
   const [selectedDictionary, setSelectedDictionary] = useState<string>("dynamic")
+  const [selectedApplication, setSelectedApplication] = useState<Application | null>(null)
   const [selectedColumns, setSelectedColumns] = useState<string[] | null>(null)
   const [loading, setLoading] = useState<boolean>(false)
+  const [viewMode, setViewMode] = useState<"select" | "logs">("select")
 
-  // Fetch available dictionaries on mount
+  // Fetch initial data
   useEffect(() => {
-    const fetchDictionaries = async () => {
+    const fetchInitialData = async () => {
       try {
-        const response = await fetch("http://localhost:8000/list-dictionaries")
-        const result = await response.json()
-        const parsedDictionaries = result.dictionaries.map((dict: any) => ({
+        // Fetch dictionaries
+        const dictResponse = await fetch("http://localhost:8000/list-dictionaries")
+        const dictResult = await dictResponse.json()
+        const parsedDictionaries = dictResult.dictionaries.map((dict: any) => ({
           name: dict.name,
           columns: dict.data[dict.name] || [],
         }))
         setDictionaries(parsedDictionaries)
+
+        // Fetch applications
+        const appResponse = await fetch("http://localhost:8000/list-applications", {
+          credentials: "include",
+        })
+        const appResult = await appResponse.json()
+        console.log("Applications API response:", appResult)
+
+        const parsedApplications = (appResult.applications || []).map((app: any) => ({
+          application_id: app.application_id,
+          name: app.name,
+          secret: app.secret,
+          organisation: app.organisation || '',
+          user_id: app.user_id
+        }))
+
+        console.log("Parsed applications:", parsedApplications)
+        setApplications(parsedApplications)
       } catch (error) {
-        console.error("Error fetching dictionaries:", error)
+        console.error("Error fetching initial data:", error)
       }
     }
 
-    fetchDictionaries()
+    fetchInitialData()
   }, [])
 
+  // Fetch data when application is selected
+  useEffect(() => {
+    if (viewMode === "logs" && selectedApplication) {
+      fetchData()
+    }
+  }, [selectedApplication, viewMode])
+
   const fetchData = async () => {
+    if (!selectedApplication?.secret) {
+      console.error("No application secret available")
+      return
+    }
+
     setLoading(true)
-    setData([]) // Clear existing data before fetching
-    const url = "http://localhost:8000/read?logs=all"
+    setData([])
 
     try {
-      const response = await fetch(url, {
-        method: "GET",
-        headers: { "Content-Type": "application/json" },
+      console.log("Fetching data with secret:", selectedApplication.secret)
+      const response = await fetch("http://localhost:8000/read", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
         credentials: "include",
+        body: JSON.stringify({
+          applicationSecret: selectedApplication.secret,
+        }),
       })
 
-      if (response.headers.get("content-type")?.includes("text/html")) {
-        const errorHtml = await response.text()
-        console.error("Received HTML instead of JSON:", errorHtml)
-        alert("Server returned an error. Please check the console.")
-        return
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`)
+      }
+
+      const contentType = response.headers.get("content-type")
+      if (!contentType || !contentType.includes("application/json")) {
+        const text = await response.text()
+        throw new Error(`Invalid content type. Received: ${contentType}. Body: ${text}`)
       }
 
       const fetchedData = await response.json()
       console.log("Fetched data:", fetchedData)
 
-      const formattedData = fetchedData.map((item: any) => ({
+      const formattedData = fetchedData.map((item: any, index: number) => ({
         ...item,
+        id: index + 1,
         timestamp: item.timestamp
           ? new Date(item.timestamp).toLocaleString("en-US", { timeZone: "UTC" })
           : "Invalid Timestamp",
@@ -173,7 +239,7 @@ const Main: React.FC<MainProps> = ({ children }) => {
       setData(formattedData)
     } catch (error) {
       console.error("Error fetching data:", error)
-      alert("An error occurred while fetching data. Please try again later.")
+      alert(`Error fetching data: ${error instanceof Error ? error.message : String(error)}`)
     } finally {
       setLoading(false)
     }
@@ -182,62 +248,102 @@ const Main: React.FC<MainProps> = ({ children }) => {
   const handleDictionaryChange = (event: any) => {
     const selectedName = event.target.value
     setSelectedDictionary(selectedName)
-    setData([]) // Clear data when switching dictionaries
+    setData([])
 
     if (selectedName === "dynamic") {
-      setSelectedColumns(null) // Clear columns for dynamic mode
+      setSelectedColumns(null)
     } else {
       const selectedDict = dictionaries.find((dict) => dict.name === selectedName)
       setSelectedColumns(selectedDict ? selectedDict.columns : [])
     }
   }
 
+  const handleApplicationSelect = (application: Application) => {
+    console.log("Handling application selection:", application)
+    if (!application?.secret) {
+      console.error("Application secret is missing")
+      alert("Selected application is invalid - missing secret")
+      return
+    }
+    setSelectedApplication(application)
+    setViewMode("logs")
+  }
+
+  const handleBackToSelector = () => {
+    setViewMode("select")
+    setSelectedApplication(null)
+  }
+
+  const handleRefresh = () => {
+    if (selectedApplication) {
+      fetchData()
+    }
+  }
+
   return (
     <StyledMain>
       <Container>
-        <Header>
-          <Title>
-            <Database size={24} />
-            Log Explorer
-          </Title>
+        {viewMode === "select" ? (
+          <ApplicationSelector 
+            applications={applications} 
+            onSelectApplication={handleApplicationSelect} 
+          />
+        ) : (
+          <>
+            <Header>
+              <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
+                <BackButton onClick={handleBackToSelector} startIcon={<ArrowLeft size={18} />}>
+                  Back
+                </BackButton>
+                <Title>
+                  <Database size={24} />
+                  Log Explorer: {selectedApplication?.name || "No Application Selected"}
+                </Title>
+              </div>
 
-          <Controls>
-            <StyledSelect
-              value={selectedDictionary}
-              onChange={handleDictionaryChange}
-              displayEmpty
-              sx={{
-                color: "white",
-                backgroundColor: "#0D1117",
-                "& .MuiSvgIcon-root": {
-                  color: "white",
-                },
-              }}
-            >
-              <MenuItem value="dynamic">Dynamic (Auto-Detect)</MenuItem>
-              {dictionaries.map((dict) => (
-                <MenuItem key={dict.name} value={dict.name}>
-                  {dict.name}
-                </MenuItem>
-              ))}
-            </StyledSelect>
+              <Controls>
+                <StyledSelect
+                  value={selectedDictionary}
+                  onChange={handleDictionaryChange}
+                  displayEmpty
+                  sx={{
+                    color: "white",
+                    backgroundColor: "#0D1117",
+                    "& .MuiSvgIcon-root": {
+                      color: "white",
+                    },
+                  }}
+                >
+                  <MenuItem value="dynamic">Dynamic (Auto-Detect)</MenuItem>
+                  {dictionaries.map((dict) => (
+                    <MenuItem key={dict.name} value={dict.name}>
+                      {dict.name}
+                    </MenuItem>
+                  ))}
+                </StyledSelect>
 
-            <StyledButton
-              variant="contained"
-              onClick={fetchData}
-              disabled={loading}
-              startIcon={<RefreshCw size={18} className={loading ? "animate-spin" : ""} />}
-            >
-              {loading ? "Fetching..." : "Fetch Data"}
-            </StyledButton>
-          </Controls>
-        </Header>
+                <StyledButton
+                  variant="contained"
+                  onClick={handleRefresh}
+                  disabled={loading || !selectedApplication}
+                  startIcon={<RefreshCw size={18} className={loading ? "animate-spin" : ""} />}
+                >
+                  {loading ? "Refreshing..." : "Refresh Data"}
+                </StyledButton>
+              </Controls>
+            </Header>
 
-        <ErrorContainer />
+            <ErrorContainer />
 
-        <div style={{ flexGrow: 1, overflow: "hidden", marginTop: "16px" }}>
-          <Result rows={data} columns={selectedColumns} loading={loading} />
-        </div>
+            <div style={{ flexGrow: 1, overflow: "hidden", marginTop: "16px" }}>
+              <Result 
+                rows={data} 
+                columns={selectedColumns} 
+                loading={loading} 
+              />
+            </div>
+          </>
+        )}
 
         {children}
       </Container>
@@ -246,4 +352,3 @@ const Main: React.FC<MainProps> = ({ children }) => {
 }
 
 export default Main
-

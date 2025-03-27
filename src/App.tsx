@@ -9,6 +9,7 @@ import ForgottenPassword from './components/SignIn/ForgottenPassword';
 import UserD from './UserD';
 import AppOrg from './AppOrg';
 import AppApp from './AppApp';
+import ApplicationList from "./components/ApplicationList/ApplicationList"
 
 const App = () => {
   return (
@@ -23,6 +24,7 @@ const App = () => {
           <Route path="/users" element={<UserD/>}/>  
           <Route path="/application" element={<AppApp/>}/>
           <Route path="/organisation" element={<AppOrg/>}/>        
+          <Route path="/logs" element={<ApplicationList />} />
         </Routes>
     </BrowserRouter>
   )
