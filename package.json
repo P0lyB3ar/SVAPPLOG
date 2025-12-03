@@ -37,7 +37,7 @@
     "lucide-react": "^0.483.0",
     "mdb-react-ui-kit": "^8.0.0",
     "morgan": "^1.10.0",
-    "next": "^15.2.4",
+    "next": "^15.2.6",
     "passport": "^0.7.0",
     "passport-jwt": "^4.0.1",
     "pg": "^8.12.0",
